@@ -4,7 +4,7 @@ import AdminBlog from './components/AdminBlog';
 export default function Home() {
   return (
    <div>
-      <AdminBlog />
+      
    </div>
   );
 }

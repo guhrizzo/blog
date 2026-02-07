@@ -24,3 +24,7 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.conteudo-noticia h1, .conteudo-noticia h2 { margin-top: 20px; }
+.conteudo-noticia p { margin-bottom: 15px; }
+.conteudo-noticia ul { padding-left: 20px; margin-bottom: 15px; }
