@@ -6,6 +6,10 @@ import { useRouter, useParams } from "next/navigation";
 import { db, storage } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import Link from "next/link";
+
+// Notificações Profissionais
+import { Toaster, toast } from "sonner";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 import "react-quill-new/dist/quill.snow.css";
@@ -44,31 +48,33 @@ export default function EditarPost() {
             imagem_URL: dados.imagem_URL,
           });
           setPreview(dados.imagem_URL);
+        } else {
+          toast.error("Post não encontrado.");
+          router.push("/admin/posts");
         }
       } catch (error) {
-        console.error("Erro ao carregar:", error);
+        toast.error("Erro ao carregar dados do post.");
       } finally {
         setCarregando(false);
       }
     };
     carregarDados();
-  }, [id]);
+  }, [id, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setEnviando(true);
+    const toastId = toast.loading("Atualizando publicação...");
 
     try {
       let finalURL = post.imagem_URL;
 
-      // Se o usuário escolheu uma nova imagem, faz upload dela
       if (imagemNova) {
         const storageRef = ref(storage, `noticias/${Date.now()}_${imagemNova.name}`);
         const snapshot = await uploadBytes(storageRef, imagemNova);
         finalURL = await getDownloadURL(snapshot.ref);
       }
 
-      // Atualiza o documento no Firestore
       const docRef = doc(db, "noticias", id as string);
       await updateDoc(docRef, {
         titulo: post.titulo,
@@ -78,36 +84,75 @@ export default function EditarPost() {
         imagem_URL: finalURL,
       });
 
-      alert("Post atualizado com sucesso!");
-      router.push("/admin/posts"); // Volta para a lista de gerenciamento
+      toast.success("Alterações salvas com sucesso!", { id: toastId });
+      
+      // Pequeno delay para o usuário ver o feedback antes de voltar
+      setTimeout(() => router.push("/admin/posts"), 1000);
     } catch (error: any) {
-      alert("Erro ao atualizar: " + error.message);
+      toast.error("Erro ao atualizar: " + error.message, { id: toastId });
     } finally {
       setEnviando(false);
     }
   };
 
-  if (carregando) return <div className="p-20 text-center">Carregando dados...</div>;
+  if (carregando) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-yellow-500 mb-4" />
+        <p className="text-slate-500 font-medium animate-pulse">Buscando informações do post...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans">
-      <nav className="border-b bg-white px-6 py-4">
-        <div className="mx-auto max-w-5xl flex justify-between items-center">
-           <h1 className="text-xl text-slate-900 font-bold">Editar Notícia <span className="text-yellow-500">#GrupoProtect</span></h1>
-           <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-800 text-sm font-medium cursor-pointer border border-slate-400 p-2 px-4 transition-all ease-in-out duration-200 bg-transparent hover:bg-slate-700/20 rounded-full italic">← Cancelar e Voltar</button>
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
+      <Toaster position="top-right" richColors />
+
+      {/* Navbar Interna */}
+      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-2 bg-yellow-500 rounded-full" />
+            <h1 className="text-xl font-bold tracking-tight">Grupo <span className="text-yellow-600">Protect</span></h1>
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-500 cursor-pointer transition hover:bg-slate-50 hover:text-slate-800 shadow-sm"
+          >
+            Cancelar Edição
+          </button>
         </div>
       </nav>
 
       <main className="mx-auto mt-10 max-w-4xl px-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        
+        {/* HEADER */}
+        <div className="mb-10 flex flex-col gap-6">
+          <Link
+            href="/admin/posts"
+            className="group flex w-fit items-center gap-2 text-sm font-bold text-slate-400 transition-all hover:text-yellow-600"
+          >
+            <span className="flex h-8  items-center justify-center rounded-lg group-hover:border-yellow-200 transition-all">
+                ← Voltar para a Lista
+            </span>
+            
+          </Link>
+
+          <div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Editar <span className="text-yellow-500">Notícia</span></h2>
+            <p className="text-slate-500 text-lg italic opacity-80">Atualize as informações do conteúdo selecionado.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Inputs Básicos */}
+          {/* Card de Informações */}
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-bold text-slate-700">Título</label>
+                <label className="mb-2 block text-xs font-black text-slate-400 uppercase tracking-widest">Título da Publicação</label>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 text-slate-900 bg-slate-50 px-4 py-3 outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 transition"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none transition focus:border-yellow-500 focus:bg-white focus:ring-4 focus:ring-yellow-500/10"
                   type="text"
                   value={post.titulo}
                   onChange={e => setPost({ ...post, titulo: e.target.value })}
@@ -115,9 +160,9 @@ export default function EditarPost() {
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">Categoria</label>
+                <label className="mb-2 block text-xs font-black text-slate-400 uppercase tracking-widest">Categoria</label>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 text-slate-900 bg-slate-50 px-4 py-3 outline-none focus:border-yellow-500 transition"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none transition focus:border-yellow-500 focus:bg-white focus:ring-4 focus:ring-yellow-500/10"
                   type="text"
                   value={post.categoria}
                   onChange={e => setPost({ ...post, categoria: e.target.value })}
@@ -125,9 +170,9 @@ export default function EditarPost() {
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">Data</label>
+                <label className="mb-2 block text-xs font-black text-slate-400 uppercase tracking-widest">Data Publicada</label>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none text-slate-900 focus:border-yellow-500 transition"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none transition focus:border-yellow-500 focus:bg-white focus:ring-4 focus:ring-yellow-500/10"
                   type="date"
                   value={post.data}
                   onChange={e => setPost({ ...post, data: e.target.value })}
@@ -139,20 +184,29 @@ export default function EditarPost() {
 
           {/* Área da Imagem */}
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-             <label className="mb-4 block text-sm font-bold text-slate-700">Imagem de Capa (Clique para trocar)</label>
-             <div className="relative group h-64 w-full rounded-2xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-300 hover:border-yellow-500 transition">
-                <img src={preview || ""} alt="Preview" className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                   <span className="text-white font-bold uppercase tracking-wider">Alterar Foto</span>
+             <label className="mb-4 block text-xs font-black text-slate-400 uppercase tracking-widest">Imagem de Capa (Clique para trocar)</label>
+             <div className="relative group h-72 w-full rounded-3xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-200 hover:border-yellow-500 transition-all duration-300">
+                <img src={preview || ""} alt="Preview" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all backdrop-blur-[2px]">
+                   <div className="bg-white p-3 rounded-full shadow-xl mb-2">
+                     <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                     </svg>
+                   </div>
+                   <span className="text-white font-bold text-sm uppercase tracking-tighter">Substituir Imagem Atual</span>
                 </div>
+
                 <input 
                   type="file" 
                   className="absolute inset-0 opacity-0 cursor-pointer"
+                  accept="image/*"
                   onChange={e => {
                     const file = e.target.files?.[0];
                     if (file) {
                       setImagemNova(file);
                       setPreview(URL.createObjectURL(file));
+                      toast.info("Nova imagem selecionada!");
                     }
                   }}
                 />
@@ -160,35 +214,40 @@ export default function EditarPost() {
           </div>
 
           {/* Editor Quill */}
-          <div className="rounded-3xl border border-slate-200 bg-white text-slate-900 p-8 shadow-sm">
-            <ReactQuill
-              theme="snow"
-              value={post.conteudo}
-              onChange={(content) => setPost({ ...post, conteudo: content })}
-            />
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <label className="mb-4 block text-xs font-black text-slate-400 uppercase tracking-widest">Corpo da Matéria</label>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              <ReactQuill
+                theme="snow"
+                value={post.conteudo}
+                onChange={(content) => setPost({ ...post, conteudo: content })}
+                className="bg-white min-h-[300px]"
+              />
+            </div>
           </div>
 
-          {/* BOTÃO GLOW DOURADO FUNCIONAL */}
-          <div className="flex justify-end">
-            <div className="relative group">
-              <button 
-                type="submit"
-                disabled={enviando}
-                className="relative inline-block p-px font-semibold cursor-pointer leading-6 text-white bg-slate-800 rounded-xl transition-transform duration-300 active:scale-95 disabled:opacity-50"
-              >
-                <span className={`absolute inset-0 rounded-xl bg-linear-to-r from-yellow-400 via-amber-500 to-yellow-600 p-0.5 transition-opacity duration-500 ${enviando ? 'opacity-100 animate-pulse' : 'opacity-0 group-hover:opacity-100'}`} />
-                <span className="relative z-10 block px-10 py-4 rounded-xl bg-slate-950">
-                  <span className="flex items-center space-x-3">
-                    <span className="text-lg font-bold">{enviando ? "Salvando..." : "Salvar Alterações"}</span>
-                    {enviando && <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />}
-                  </span>
+          {/* BOTÃO SALVAR */}
+          <div className="flex justify-end pb-12">
+            <button 
+              type="submit"
+              disabled={enviando}
+              className="group relative inline-flex items-center cursor-pointer justify-center px-12 py-4 font-bold text-white transition-all duration-200 bg-slate-900 font-pj rounded-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 hover:bg-yellow-500 hover:shadow-xl hover:shadow-yellow-500/20 active:scale-95"
+            >
+              {enviando ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Salvando...
                 </span>
-              </button>
-            </div>
+              ) : "Salvar Alterações"}
+            </button>
           </div>
 
         </form>
       </main>
+
+      <footer className="w-full text-center text-xs text-slate-400 border-t border-slate-200 py-10 mt-10">
+        <p>© {new Date().getFullYear()} <span className="font-bold text-slate-600 uppercase tracking-widest">Grupo Protect</span></p>
+      </footer>
     </div>
   );
 }

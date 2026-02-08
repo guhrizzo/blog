@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link"; // Importante para o botão de retorno
 import Button from "./Button";
+import { Toaster, toast } from "sonner";
 
 // Imports do Firebase
 import { db, storage, auth } from "@/lib/firebase";
@@ -77,8 +78,12 @@ export default function AdminBlog() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!post.imagem) return alert("Selecione uma imagem de capa!");
+    if (!post.imagem) {
+        return toast.warning("Quase lá! Selecione uma imagem de capa.");
+    }
     setEnviando(true);
+    // Inicia um toast de carregamento
+    const toastId = toast.loading("Publicando sua notícia...");
 
     try {
       const file = post.imagem;
@@ -97,11 +102,12 @@ export default function AdminBlog() {
         createdAt: serverTimestamp(),
       });
 
-      alert("Publicado com sucesso!");
+      // Atualiza o toast para sucesso
+      toast.success("Sucesso! Notícia publicada no portal.", { id: toastId });
       setPost({ titulo: "", categoria: "", data: "", conteudo: "", imagem: null });
       router.push("/admin/posts"); // Redireciona para a lista após publicar
     } catch (error: any) {
-      alert("Erro: " + error.message);
+      toast.error("Ops! Erro ao publicar: " + error.message, { id: toastId });
     } finally {
       setEnviando(false);
     }
@@ -117,6 +123,7 @@ export default function AdminBlog() {
 
   return (
     <div className="min-h-screen bg-slate-50  font-sans text-slate-900">
+      <Toaster position="top-right" richColors closeButton />
       {/* Navbar Interna */}
       <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
@@ -125,8 +132,14 @@ export default function AdminBlog() {
             <h1 className="text-xl font-bold tracking-tight">Grupo <span className="text-yellow-600">Protect</span></h1>
           </div>
           <button
-            onClick={() => signOut(auth)}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 cursor-pointer transition hover:bg-red-50 hover:text-red-600 hover:border-red-200 shadow-sm"
+            onClick={() => {
+                toast.promise(signOut(auth), {
+                    loading: 'Saindo...',
+                    success: 'Até logo!',
+                    error: 'Erro ao sair',
+                });
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200 shadow-sm"
           >
             Sair do Painel
           </button>
@@ -160,7 +173,7 @@ export default function AdminBlog() {
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none transition focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/10"
                   type="text"
-                  placeholder="Título impactante aqui..."
+                  placeholder="Título aqui..."
                   value={post.titulo}
                   onChange={e => setPost({ ...post, titulo: e.target.value })}
                   required
