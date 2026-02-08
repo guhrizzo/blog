@@ -4,6 +4,7 @@ import React, { useState, useEffect, FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Button from "./Button";
 
 // Imports do Firebase
 import { db, storage, auth } from "@/lib/firebase";
@@ -173,7 +174,7 @@ export default function AdminBlog() {
               <div>
                 <label className="mb-2 block text-sm font-bold text-slate-700">Data de Exibição</label>
                 <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition cursor-pointerfocus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
                   type="date"
                   value={post.data}
                   onChange={e => setPost({ ...post, data: e.target.value })}
@@ -194,7 +195,7 @@ export default function AdminBlog() {
                   <button
                     type="button"
                     onClick={() => setPost({ ...post, imagem: null })}
-                    className="absolute top-6 right-6 rounded-full bg-red-500 p-2 text-white shadow-xl hover:bg-red-600"
+                    className="absolute top-6 right-6 rounded-full bg-red-500 p-2 w-10 text-white transition-all ease-in-out duration-200 cursor-pointer shadow-xl z-99 hover:bg-red-600"
                   >
                     ✕
                   </button>
@@ -233,43 +234,9 @@ export default function AdminBlog() {
 
           {/* Botão de Ação */}
           <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={enviando}
-              className={`
-    group relative overflow-hidden flex items-center justify-center cursor-pointer gap-3
-    rounded-xl px-12 py-4 text-lg font-semibold tracking-wide
-    transition-all duration-300 ease-out
-    ${enviando
-                  ? "cursor-not-allowed bg-slate-300 text-slate-600"
-                  : "bg-slate-900 text-white hover:-translate-y-0.5  active:translate-y-0"}
-  `}
-            >
-              {/* Energy sweep */}
-              {!enviando && (
-                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-linear-to-r from-transparent via-white/20 to-transparent" />
-              )}
-
-              {/* Conteúdo */}
-              {enviando ? (
-                <>
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <span className="relative z-10">Publicar notícia</span>
-                  <svg
-                    className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover:translate-x-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </>
-              )}
-            </button>
+            <Button type="submit" loading={enviando}>
+              Publicar notícia
+            </Button>
 
           </div>
         </form>
