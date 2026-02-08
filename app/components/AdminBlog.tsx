@@ -117,7 +117,7 @@ export default function AdminBlog() {
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
       {/* Navbar Interna */}
-      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+      <nav className="sticky top-0 z-1000 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-2 bg-yellow-500 rounded-full" />
