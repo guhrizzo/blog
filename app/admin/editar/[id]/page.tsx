@@ -221,7 +221,7 @@ export default function EditarPost() {
                 theme="snow"
                 value={post.conteudo}
                 onChange={(content) => setPost({ ...post, conteudo: content })}
-                className="bg-white min-h-[300px]"
+                className="bg-white min-h-75"
               />
             </div>
           </div>
