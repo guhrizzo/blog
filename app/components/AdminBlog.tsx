@@ -3,9 +3,14 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
-// Importação dinâmica para evitar erro de SSR com o Quill
+// Imports do Firebase
+import { db, storage, auth } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 import "react-quill-new/dist/quill.snow.css";
 
@@ -19,9 +24,11 @@ type PostForm = {
 
 export default function AdminBlog() {
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   const [verificandoAcesso, setVerificandoAcesso] = useState(true);
   const [enviando, setEnviando] = useState(false);
-  
+  const [preview, setPreview] = useState<string | null>(null);
+
   const [post, setPost] = useState<PostForm>({
     titulo: "",
     categoria: "",
@@ -30,157 +37,243 @@ export default function AdminBlog() {
     imagem: null,
   });
 
-  // 1. PROTEÇÃO DE ROTA: Verifica se o usuário está logado ao carregar a página
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login"); // Se não houver sessão, manda para o login
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login");
       } else {
         setVerificandoAcesso(false);
       }
-    };
-    checkUser();
+    });
+    return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Preview da imagem
+  useEffect(() => {
+    if (!post.imagem) {
+      setPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(post.imagem);
+    setPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [post.imagem]);
 
   const modules = {
     toolbar: [
-      [{ header: [1, 2, false] }],
+      [{ header: [1, 2, 3, false] }],
       ["bold", "italic", "underline", "strike"],
       [{ list: "ordered" }, { list: "bullet" }],
-      ["link"],
+      ["link", "blockquote", "code-block"],
       ["clean"],
     ],
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!post.imagem) return alert("Por favor, selecione uma imagem!");
-    
+    if (!post.imagem) return alert("Selecione uma imagem de capa!");
     setEnviando(true);
 
     try {
-      // 2. UPLOAD DA IMAGEM
       const file = post.imagem;
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `noticias/${fileName}`;
+      const fileName = `${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, `noticias/${fileName}`);
 
-      const { error: uploadError } = await supabase.storage
-        .from('imagens-blog')
-        .upload(filePath, file);
+      const snapshot = await uploadBytes(storageRef, file);
+      const urlDaImagem = await getDownloadURL(snapshot.ref);
 
-      if (uploadError) throw uploadError;
+      await addDoc(collection(db, "noticias"), {
+        titulo: post.titulo,
+        categoria: post.categoria,
+        data: post.data,
+        conteudo: post.conteudo,
+        imagem_URL: urlDaImagem,
+        createdAt: serverTimestamp(),
+      });
 
-      // 3. BUSCAR URL PÚBLICA
-      const { data: { publicUrl } } = supabase.storage
-        .from('imagens-blog')
-        .getPublicUrl(filePath);
-
-      // 4. SALVAR NO BANCO DE DADOS
-      const { error: insertError } = await supabase
-        .from('noticias')
-        .insert([{
-            titulo: post.titulo,
-            categoria: post.categoria,
-            data: post.data,
-            conteudo: post.conteudo,
-            imagem_url: publicUrl,
-        }]);
-
-      if (insertError) throw insertError;
-
-      alert("Notícia publicada com sucesso!");
-      
-      // Limpa o formulário após o envio
+      alert("Publicado com sucesso!");
       setPost({ titulo: "", categoria: "", data: "", conteudo: "", imagem: null });
-      window.location.reload(); 
-      
+      router.refresh();
     } catch (error: any) {
-      alert("Erro operacional: " + error.message);
+      alert("Erro: " + error.message);
     } finally {
       setEnviando(false);
     }
   };
 
-  // Enquanto verifica o login, exibe uma mensagem de espera
-  if (verificandoAcesso) {
-    return <div style={{ textAlign: 'center', marginTop: '50px' }}>Verificando permissões...</div>;
+  if (!isClient || verificandoAcesso) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 text-slate-500">
+        <div className="animate-pulse font-medium">Autenticando administrador...</div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "20px auto", padding: 20, fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2>Painel Administrativo</h2>
-        <button 
-          onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
-          style={{ padding: '5px 10px', cursor: 'pointer', background: '#f44336', color: '#fff', border: 'none', borderRadius: '4px' }}
-        >
-          Sair
-        </button>
-      </div>
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
+      {/* Navbar Interna */}
+      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-2 bg-yellow-500 rounded-full" />
+            <h1 className="text-xl font-bold tracking-tight">Portal <span className="text-yellow-600">Admin</span></h1>
+          </div>
+          <button
+            onClick={() => signOut(auth)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 cursor-pointer transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          >
+            Sair do Painel
+          </button>
+        </div>
+      </nav>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-        <input 
-          style={{ padding: '12px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px' }}
-          type="text" 
-          placeholder="Título da Notícia" 
-          value={post.titulo}
-          onChange={e => setPost({...post, titulo: e.target.value})} 
-          required 
-        />
-        
-        <div style={{ display: 'flex', gap: 10 }}>
-           <input 
-            style={{ flex: 1, padding: '12px', border: '1px solid #ccc', borderRadius: '4px' }}
-            type="text" 
-            placeholder="Categoria" 
-            value={post.categoria}
-            onChange={e => setPost({...post, categoria: e.target.value})} 
-            required
-           />
-           <input 
-            style={{ padding: '12px', border: '1px solid #ccc', borderRadius: '4px' }}
-            type="date" 
-            value={post.data}
-            onChange={e => setPost({...post, data: e.target.value})} 
-            required
-           />
+      <main className="mx-auto mt-10 max-w-4xl px-6">
+        {/* Header do Formulário */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-extrabold text-slate-900">Nova Notícia</h2>
+          <p className="text-slate-500">Preencha os campos abaixo para publicar no blog.</p>
         </div>
 
-        <div style={{ padding: '10px', background: '#f9f9f9', border: '1px dashed #ccc' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Imagem de Capa:</label>
-          <input type="file" accept="image/*" onChange={e => setPost({...post, imagem: e.target.files![0]})} />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Card Principal */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition hover:shadow-md">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
-        <div style={{ height: '350px', marginBottom: '60px' }}>
-          <ReactQuill 
-            theme="snow" 
-            value={post.conteudo} 
-            onChange={(content) => setPost({...post, conteudo: content})}
-            modules={modules}
-            style={{ height: '100%' }}
-            placeholder="Escreva sua notícia aqui..."
-          />
-        </div>
+              {/* Input Titulo - Span full width */}
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-bold text-slate-700">Título do Post</label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                  type="text"
+                  placeholder="Ex: Novo lançamento da Taurus 2026"
+                  value={post.titulo}
+                  onChange={e => setPost({ ...post, titulo: e.target.value })}
+                  required
+                />
+              </div>
 
-        <button 
-          type="submit" 
-          disabled={enviando}
-          style={{ 
-            padding: 15, 
-            background: enviando ? '#ccc' : '#0070f3', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '4px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            cursor: enviando ? 'not-allowed' : 'pointer' 
-          }}
-        >
-          {enviando ? "Processando..." : "Publicar Notícia"}
-        </button>
-      </form>
+              {/* Input Categoria */}
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Categoria</label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                  type="text"
+                  placeholder="Eventos, Produtos..."
+                  value={post.categoria}
+                  onChange={e => setPost({ ...post, categoria: e.target.value })}
+                  required
+                />
+              </div>
+
+              {/* Input Data */}
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Data de Exibição</label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                  type="date"
+                  value={post.data}
+                  onChange={e => setPost({ ...post, data: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card de Imagem */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <label className="mb-4 block text-sm font-bold text-slate-700">Imagem de Capa</label>
+            <div className="group relative flex min-h-50 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 transition hover:border-yellow-400 hover:bg-yellow-50/30">
+
+              {preview ? (
+                <div className="relative h-full w-full p-4">
+                  <img src={preview} alt="Preview" className="max-h-64 w-full rounded-xl object-cover shadow-lg" />
+                  <button
+                    type="button"
+                    onClick={() => setPost({ ...post, imagem: null })}
+                    className="absolute top-6 right-6 rounded-full bg-red-500 p-2 text-white shadow-xl hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-6">
+                  <svg className="mb-3 h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  <p className="text-sm font-medium text-slate-600">Clique para selecionar ou arraste a foto</p>
+                  <p className="text-xs text-slate-400">PNG, JPG ou WEBP (Max. 5MB)</p>
+                </div>
+              )}
+
+              <input
+                type="file"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                accept="image/*"
+                onChange={e => setPost({ ...post, imagem: e.target.files ? e.target.files[0] : null })}
+                required={!preview}
+              />
+            </div>
+          </div>
+
+          {/* Editor de Texto */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <label className="mb-4 block text-sm font-bold text-slate-700">Conteúdo da Notícia</label>
+            <div className="min-h-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <ReactQuill
+                theme="snow"
+                value={post.conteudo}
+                onChange={(content) => setPost({ ...post, conteudo: content })}
+                modules={modules}
+                placeholder="Conte a história completa aqui..."
+              />
+            </div>
+          </div>
+
+          {/* Botão de Ação */}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={enviando}
+              className={`
+    group relative overflow-hidden flex items-center justify-center cursor-pointer gap-3
+    rounded-xl px-12 py-4 text-lg font-semibold tracking-wide
+    transition-all duration-300 ease-out
+    ${enviando
+                  ? "cursor-not-allowed bg-slate-300 text-slate-600"
+                  : "bg-slate-900 text-white hover:-translate-y-0.5  active:translate-y-0"}
+  `}
+            >
+              {/* Energy sweep */}
+              {!enviando && (
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-linear-to-r from-transparent via-white/20 to-transparent" />
+              )}
+
+              {/* Conteúdo */}
+              {enviando ? (
+                <>
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <span className="relative z-10">Publicar notícia</span>
+                  <svg
+                    className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover:translate-x-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+          </div>
+        </form>
+      </main>
     </div>
   );
 }
