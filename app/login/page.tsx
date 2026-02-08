@@ -93,7 +93,7 @@ export default function LoginPage() {
                     {/* Footer do Card */}
                     <div className="mt-8 text-center">
                         <Link
-                            href="https://clube-de-tiro.vercel.app"
+                            href="https://clube-de-tiro.vercel.app/home"
                             className="text-sm font-medium text-slate-400 transition hover:text-slate-600"
                         >
                             ← Voltar para o site público

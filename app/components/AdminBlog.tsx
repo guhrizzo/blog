@@ -79,7 +79,7 @@ export default function AdminBlog() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!post.imagem) {
-        return toast.warning("Quase lá! Selecione uma imagem de capa.");
+      return toast.warning("Quase lá! Selecione uma imagem de capa.");
     }
     setEnviando(true);
     // Inicia um toast de carregamento
@@ -133,11 +133,11 @@ export default function AdminBlog() {
           </div>
           <button
             onClick={() => {
-                toast.promise(signOut(auth), {
-                    loading: 'Saindo...',
-                    success: 'Até logo!',
-                    error: 'Erro ao sair',
-                });
+              toast.promise(signOut(auth), {
+                loading: 'Saindo...',
+                success: 'Até logo!',
+                error: 'Erro ao sair',
+              });
             }}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200 shadow-sm"
           >
@@ -147,14 +147,14 @@ export default function AdminBlog() {
       </nav>
 
       <main className="mx-auto mt-10 max-w-4xl px-6">
-        
+
         {/* BOTÃO DE RETORNO E HEADER */}
         <div className="mb-10 flex flex-col gap-6">
           <Link
             href="/admin"
             className="group flex w-fit items-center gap-3 text-sm font-bold text-slate-500 transition-all hover:text-yellow-600"
           >
-            
+
             ← Voltar ao Dashboard
           </Link>
 
@@ -240,16 +240,20 @@ export default function AdminBlog() {
           </div>
 
           {/* Editor de Conteúdo */}
+          {/* Editor de Conteúdo */}
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <label className="mb-4 block text-sm font-bold text-slate-700 uppercase tracking-wider">Conteúdo</label>
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
+            <label className="mb-4 block text-sm font-bold text-slate-700 uppercase tracking-wider">
+              Conteúdo
+            </label>
+            {/* Removido o overflow-hidden daqui para não cortar o menu de link */}
+            <div className="quill-wrapper rounded-2xl border border-slate-200 bg-white">
               <ReactQuill
                 theme="snow"
                 value={post.conteudo}
                 onChange={(content) => setPost({ ...post, conteudo: content })}
                 modules={modules}
                 placeholder="Escreva os detalhes da notícia..."
-                className="bg-white min-h-75"
+                className="min-h-75" // Use colchetes para valores customizados no Tailwind
               />
             </div>
           </div>
