@@ -107,7 +107,7 @@ export default function GerenciarPosts() {
 
                     <Link
                         href="/admin/novo"
-                        className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-yellow-500 hover:shadow-xl hover:shadow-yellow-500/20 transition-all active:scale-95 whitespace-nowrap"
+                        className="bg-slate-900 text-white px-35 py-4 rounded-2xl font-bold hover:bg-yellow-500 hover:shadow-xl hover:shadow-yellow-500/20 transition-all active:scale-95 whitespace-nowrap"
                     >
                         + Novo Post
                     </Link>
