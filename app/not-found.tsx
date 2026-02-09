@@ -29,7 +29,7 @@ export default function NotFound() {
       </div>
 
       {/* Texto de Erro */}
-      <h1 className="text-8xl font-black text-slate-200">404</h1>
+      <h1 className="text-8xl font-black text-slate-300">404</h1>
       <h2 className="mt-4 text-3xl font-extrabold text-slate-900">
         Página não encontrada
       </h2>
@@ -41,7 +41,7 @@ export default function NotFound() {
       <div className="mt-10 flex flex-col gap-4 sm:flex-row">
         <button
           onClick={() => router.back()}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-white border border-slate-200 px-8 py-4 font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+          className="flex items-center justify-center gap-2 cursor-pointer rounded-2xl bg-white border border-slate-200 px-8 py-4 font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
