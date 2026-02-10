@@ -92,11 +92,12 @@ export default function AdminBlog() {
 
       const snapshot = await uploadBytes(storageRef, file);
       const urlDaImagem = await getDownloadURL(snapshot.ref);
+      const dataAjustada = post.data + "T12:00:00";
 
       await addDoc(collection(db, "noticias"), {
         titulo: post.titulo,
         categoria: post.categoria,
-        data: post.data,
+        data: dataAjustada,
         conteudo: post.conteudo,
         imagem_URL: urlDaImagem,
         createdAt: serverTimestamp(),
