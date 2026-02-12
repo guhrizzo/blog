@@ -97,7 +97,7 @@ export default function AdminBlog() {
       await addDoc(collection(db, "noticias"), {
         titulo: post.titulo,
         categoria: post.categoria,
-        data: dataAjustada,
+        data: dataAjustada ,
         conteudo: post.conteudo,
         imagem_URL: urlDaImagem,
         createdAt: serverTimestamp(),

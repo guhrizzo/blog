@@ -1,64 +1,133 @@
 "use client";
+
+import { useState, useEffect } from "react"; // Adicionado useEffect e useState
 import Link from "next/link";
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged } from "firebase/auth"; // Adicionado onAuthStateChanged
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { 
+  PlusCircle, 
+  Settings, 
+  PackagePlus, 
+  LayoutList, 
+  LogOut,
+  ShieldCheck
+} from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const [userName, setUserName] = useState<string>("Administrador");
+
+  // Lógica para pegar o nome do usuário logado
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Se o usuário tiver um nome cadastrado (displayName), usamos ele.
+        // Caso contrário, pegamos a parte antes do @ no e-mail.
+        const name = user.displayName || user.email?.split('@')[0] || "Administrador";
+        
+        // Formata para a primeira letra ser maiúscula
+        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        setUserName(formattedName);
+      } else {
+        router.push("/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const handleLogout = () => {
+    signOut(auth).then(() => router.push("/login"));
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
+      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="h-8 w-2 bg-yellow-500 rounded-full" />
             <h1 className="text-xl font-bold text-slate-900">Grupo <span className="text-yellow-600">Protect</span></h1>
           </div>
           <button 
-            onClick={() => signOut(auth).then(() => router.push("/login"))}
-            className="text-sm font-semibold text-red-500 hover:text-red-700 cursor-pointer p-2 rounded-full w-16 bg-transparent hover:bg-red-200 border border-red-400 hover:border-red-400/50 transition-all"
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 cursor-pointer p-2 px-4 rounded-xl bg-transparent hover:bg-red-50 border border-red-200 transition-all"
           >
+            <LogOut size={16} />
             Sair
           </button>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-16">
+      <main className="max-w-6xl mx-auto px-6 py-16">
         <div className="mb-12">
-          <h2 className="text-4xl font-extrabold text-slate-900">Bem-vindo ao <span className="text-yellow-500">Painel</span></h2>
-          <p className="text-slate-500 mt-2 text-lg">O que deseja fazer hoje no portal do Grupo Protect?</p>
+          <div className="flex items-center gap-3 mb-2">
+             <ShieldCheck className="text-yellow-500" size={32} />
+             <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+               Painel de <span className="text-yellow-500">Controle</span>
+             </h2>
+          </div>
+          {/* Nome dinâmico aplicado aqui */}
+          <p className="text-slate-500 text-lg italic">
+            Bem-vindo, <span className="text-slate-900 font-bold not-italic">{userName}</span>. Gerencie o conteúdo do portal do Grupo Protect.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Card Criar */}
-          <Link href="/admin/novo" className="group relative overflow-hidden bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-            <div className="relative z-10">
-              <div className="w-14 h-14 bg-yellow-100 text-yellow-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-yellow-500 group-hover:text-white transition-colors duration-500">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Criar Notícia</h3>
-              <p className="text-slate-500">Escreva e publique novos conteúdos com imagens e formatação.</p>
-            </div>
-            <div className="absolute bottom-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-               <svg className="w-24 h-24 text-slate-900" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path></svg>
-            </div>
-          </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+          
+          {/* SEÇÃO DE NOTÍCIAS */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Blog e Notícias</h3>
+            <div className="grid gap-4">
+              <Link href="/admin/novo" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-white transition-colors">
+                  <PlusCircle size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-slate-900">Nova Notícia</h4>
+                  <p className="text-slate-500 text-sm">Publicar avisos e artigos</p>
+                </div>
+              </Link>
 
-          {/* Card Gerenciar */}
-          <Link href="/admin/posts" className="group relative overflow-hidden bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-            <div className="relative z-10 text-white">
-              <div className="w-14 h-14 bg-slate-800 text-yellow-500 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-yellow-500 group-hover:text-white transition-colors duration-500">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-              </div>
-              <h3 className="text-2xl font-bold mb-2 text-white">Gerenciar Posts</h3>
-              <p className="text-slate-400">Edite notícias existentes ou remova publicações antigas.</p>
+              <Link href="/admin/posts" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                  <Settings size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-slate-900">Editar Notícias</h4>
+                  <p className="text-slate-500 text-sm">Gerenciar postagens do blog</p>
+                </div>
+              </Link>
             </div>
-            <div className="absolute bottom-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-               <svg className="w-24 h-24 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+          </div>
+
+          {/* SEÇÃO DE PRODUTOS */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Catálogo de Produtos</h3>
+            <div className="grid gap-4">
+              <Link href="/admin/produtos/novo" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <PackagePlus size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-slate-900">Add Produto</h4>
+                  <p className="text-slate-500 text-sm">Cadastrar item no inventário</p>
+                </div>
+              </Link>
+
+              <Link href="/admin/produtos" className="group flex items-center gap-6 bg-white p-6 shadow-sm rounded-3xl border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-slate-800 text-blue-500 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <LayoutList size={24} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-slate-900">Gerenciar Catálogo</h4>
+                  <p className="text-slate-400 text-sm">Editar preços e remover itens</p>
+                </div>
+              </Link>
             </div>
-          </Link>
+          </div>
+          
         </div>
       </main>
     </div>
