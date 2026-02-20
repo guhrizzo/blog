@@ -80,7 +80,7 @@ export default function AddPhotoPage() {
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-yellow-500 rounded-lg text-white">
+            <div className="p-2 bg-green-500 rounded-lg text-white">
               <ImageIcon size={24} />
             </div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Adicionar à Galeria</h1>
@@ -106,7 +106,7 @@ export default function AddPhotoPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Treinamento de Elite - Módulo I"
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-yellow-500 focus:bg-white transition-all"
+                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all"
                 />
               </div>
 
@@ -118,7 +118,7 @@ export default function AddPhotoPage() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-yellow-500 focus:bg-white transition-all appearance-none cursor-pointer"
+                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all appearance-none cursor-pointer"
                 >
                   <option value="Treinamento">Treinamento</option>
                   <option value="Eventos">Eventos</option>
@@ -131,7 +131,7 @@ export default function AddPhotoPage() {
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                   Arquivo de Imagem
                 </label>
-                <div className="relative group min-h-75 w-full rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-yellow-500 transition-all flex flex-col items-center justify-center overflow-hidden">
+                <div className="relative group min-h-75 w-full rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-green-500 transition-all flex flex-col items-center justify-center overflow-hidden">
                   
                   {preview ? (
                     <>
@@ -167,7 +167,7 @@ export default function AddPhotoPage() {
           <button
             type="submit"
             disabled={uploading}
-            className="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-yellow-500 hover:shadow-yellow-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-green-500 hover:shadow-green-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {uploading ? (
               <>
