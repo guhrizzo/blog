@@ -108,10 +108,10 @@ export default function CriarEvento() {
               className="w-full bg-slate-950 text-white rounded-2xl p-5 font-black uppercase tracking-[0.2em] text-sm hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center cursor-pointer gap-3 disabled:opacity-50"
             >
               {loading ? "A processar..." : (
-                <>
+                <div className="text-[12px] flex  items-center gap-2">
                   <CheckCircle2 size={20} className="text-amber-500" />
                   Confirmar Agendamento
-                </>
+                </div>
               )}
             </button>
           </form>
