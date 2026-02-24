@@ -14,8 +14,13 @@ import {
   ShieldCheck,
   Video,
   UploadCloud,
-  Camera, // Novo ícone para fotos
-  Image as ImageIcon // Novo ícone para galeria de fotos
+  Camera,
+  Image as ImageIcon,
+  CalendarDays,
+  CalendarClock,
+  LayoutDashboard,
+  FileText,
+  Boxes
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -26,8 +31,7 @@ export default function AdminDashboard() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         const name = user.displayName || user.email?.split('@')[0] || "Administrador";
-        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        setUserName(formattedName);
+        setUserName(name.charAt(0).toUpperCase() + name.slice(1));
       } else {
         router.push("/login");
       }
@@ -35,153 +39,94 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, [router]);
 
-  const handleLogout = () => {
-    signOut(auth).then(() => router.push("/login"));
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-2 bg-yellow-500 rounded-full" />
-            <h1 className="text-xl font-bold text-slate-900">Grupo <span className="text-yellow-600">Protect</span></h1>
+    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+      {/* Navbar Minimalista */}
+      <nav className="bg-white border-b border-slate-200 px-8 py-4 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <LayoutDashboard className="text-yellow-500" size={24} />
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">PROTECT <span className="text-yellow-600 font-black">ADMIN</span></h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 cursor-pointer p-2 px-4 rounded-xl bg-transparent hover:bg-red-50 border border-red-200 transition-all"
-          >
-            <LogOut size={16} />
-            Sair
-          </button>
+          <button onClick={() => signOut(auth).then(() => router.push("/login"))} className="text-sm font-bold text-red-500 hover:bg-red-50 cursor-pointer border px-4 py-2 border-red-500/30 rounded-xl transition-all">Sair</button>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-16">
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-2">
-            <ShieldCheck className="text-yellow-500" size={32} />
-            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-              Painel de <span className="text-yellow-500">Controle</span>
-            </h2>
+      <main className="max-w-7xl mx-auto px-6 mt-12">
+        {/* Boas vindas */}
+        <header className="mb-16">
+          <h2 className="text-4xl font-black text-slate-900 mb-2">Painel de Gestão</h2>
+          <p className="text-slate-500 italic">Olá, <span className="text-slate-900 font-bold not-italic">{userName}</span>. O que vamos atualizar hoje?</p>
+        </header>
+
+        {/* --- SEÇÃO 01: OPERACIONAL E AGENDA --- */}
+        <section className="mb-16">
+          <div className="flex items-center gap-3 mb-8 border-b border-slate-200 pb-4">
+            <FileText className="text-slate-400" size={20} />
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Operacional e Agenda</h3>
           </div>
-          <p className="text-slate-500 text-lg italic">
-            Bem-vindo, <span className="text-slate-900 font-bold not-italic">{userName}</span>. Gerencie o conteúdo do portal do Grupo Protect.
-          </p>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* BLOG */}
+            <AdminBlock title="Blog e Notícias" color="yellow" icon={<PlusCircle />} manageHref="/admin/posts" addHref="/admin/novo" />
+            
+            {/* CATALOGO */}
+            <AdminBlock title="Catálogo / Loja" color="blue" icon={<PackagePlus />} manageHref="/admin/produtos" addHref="/admin/produtos/novo" />
 
-        {/* Grid ajustado para 2 colunas em tablets e até 4 em telas grandes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+            {/* AGENDA */}
+            <AdminBlock title="Calendário de Eventos" color="amber" icon={<CalendarDays />} manageHref="/admin/agenda/gerenciar" addHref="/admin/agenda" />
 
-          {/* SEÇÃO DE NOTÍCIAS */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Blog e Notícias</h3>
-            <div className="grid gap-4">
-              <Link href="/admin/novo" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-white transition-colors">
-                  <PlusCircle size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Nova Notícia</h4>
-                  <p className="text-slate-500 text-sm">Publicar artigos</p>
-                </div>
-              </Link>
-
-              <Link href="/admin/posts" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-colors">
-                  <Settings size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Gerenciar</h4>
-                  <p className="text-slate-500 text-sm">Editar postagens</p>
-                </div>
-              </Link>
-            </div>
           </div>
+        </section>
 
-          {/* SEÇÃO DE PRODUTOS */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Catálogo</h3>
-            <div className="grid gap-4">
-              <Link href="/admin/produtos/novo" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <PackagePlus size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Add Produto</h4>
-                  <p className="text-slate-500 text-sm">Novo no inventário</p>
-                </div>
-              </Link>
-
-              <Link href="/admin/produtos" className="group flex items-center gap-6 bg-white p-6 shadow-sm rounded-3xl border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-slate-800 text-blue-500 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                  <LayoutList size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Gerenciar</h4>
-                  <p className="text-slate-400 text-sm">Editar itens</p>
-                </div>
-              </Link>
-            </div>
+        {/* --- SEÇÃO 02: MÍDIA E VISUAL --- */}
+        <section>
+          <div className="flex items-center gap-3 mb-8 border-b border-slate-200 pb-4">
+            <Boxes className="text-slate-400" size={20} />
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Mídia e Galeria Visual</h3>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            {/* VÍDEOS */}
+            <AdminBlock title="Central de Vídeos" color="purple" icon={<Video />} manageHref="/admin/videos/gerenciar" addHref="/admin/videos" />
 
-          {/* SEÇÃO DE VÍDEOS */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Vídeos</h3>
-            <div className="grid gap-4">
-              <Link href="/admin/videos" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                  <UploadCloud size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Novo Vídeo</h4>
-                  <p className="text-slate-500 text-sm">Upload de arquivos</p>
-                </div>
-              </Link>
+            {/* FOTOS */}
+            <AdminBlock title="Galeria de Fotos" color="emerald" icon={<Camera />} manageHref="/admin/galeria/gerenciar" addHref="/admin/galeria" />
 
-              <Link href="/admin/videos/gerenciar" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-colors">
-                  <Video size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Gerenciar</h4>
-                  <p className="text-slate-500 text-sm">Remover vídeos</p>
-                </div>
-              </Link>
-            </div>
           </div>
-
-          {/* NOVA SEÇÃO: GALERIA DE FOTOS */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest ml-2">Galeria de Fotos</h3>
-            <div className="grid gap-4">
-              {/* Botão para adicionar foto */}
-              <Link href="/admin/galeria" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <Camera size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Nova Foto</h4>
-                  <p className="text-slate-500 text-sm">Upload para o site</p>
-                </div>
-              </Link>
-
-              {/* Botão para gerenciar/remover fotos */}
-              <Link href="/admin/galeria/gerenciar" className="group flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-12 h-12 bg-slate-100 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-colors">
-                  <ImageIcon size={24} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900">Gerenciar</h4>
-                  <p className="text-slate-500 text-sm">Excluir fotografias</p>
-                </div>
-              </Link>
-            </div>
-          </div>
-
-        </div>
+        </section>
       </main>
+    </div>
+  );
+}
+
+/* Componente de Bloco para evitar repetição de código */
+function AdminBlock({ title, color, icon, manageHref, addHref }: any) {
+  const colors: any = {
+    yellow: "bg-yellow-50 text-yellow-600 hover:bg-yellow-500 border-yellow-300/50",
+    blue: "bg-blue-50 text-blue-600 hover:bg-blue-600 border-blue-300/50",
+    amber: "bg-amber-50 text-amber-600 hover:bg-amber-500 border-amber-300/50",
+    purple: "bg-purple-50 text-purple-600 hover:bg-purple-600 border-purple-300/50",
+    emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 border-emerald-300/50"
+  };
+
+  return (
+    <div className="bg-white rounded-4xl p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500">
+      <div className="flex items-center gap-4 mb-8">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors border duration-300 ${colors[color].split(' ').slice(0,2).join(' ')}`}>
+          {icon}
+        </div>
+        <h4 className="text-xl font-black text-slate-800">{title}</h4>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <Link href={addHref} className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-700 transition-all text-sm uppercase tracking-widest">
+          <PlusCircle size={18} /> Novo Registro
+        </Link>
+        <Link href={manageHref} className="flex items-center justify-center gap-2 w-full py-4 bg-white text-slate-400 border border-slate-300 rounded-2xl font-bold hover:border-slate-500 duration-200 ease-in-out hover:text-slate-600 transition-all hover:bg-slate-400/10 text-sm uppercase tracking-widest">
+          <Settings size={18} /> Gerenciar
+        </Link>
+      </div>
     </div>
   );
 }
