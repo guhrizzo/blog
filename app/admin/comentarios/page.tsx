@@ -411,7 +411,7 @@ export default function ManageComments() {
                             onClick={() =>
                               handleDelete(comment.id)
                             }
-                            className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer border border-slate-100 hover:border-red-200"
                           >
                             <Trash2 size={20} />
                           </button>
