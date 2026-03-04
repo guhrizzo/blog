@@ -184,7 +184,7 @@ export default function ManageComments() {
                 </p>
               </div>
 
-              <div className="w-12 h-12 bg-yellow-400 text-black rounded-xl flex items-center justify-center shadow-lg shadow-yellow-200">
+              <div className="w-12 h-12 bg-yellow-400 text-black rounded-xl flex items-center justify-center ">
                 <MessageSquare size={22} strokeWidth={2.5} />
               </div>
             </div>
