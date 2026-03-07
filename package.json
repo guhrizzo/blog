@@ -16,6 +16,8 @@
     "alias": "^0.0.5",
     "firebase": "^12.9.0",
     "framer-motion": "^12.34.4",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "^19.2.3",
