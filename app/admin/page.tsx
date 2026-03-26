@@ -24,7 +24,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Layers
 } from "lucide-react";
 
 // Tipagem para dados mockados de contratos (substituir por dados reais do Firebase)
@@ -252,7 +253,7 @@ export default function AdminDashboard() {
           title="Mídia e Galeria Visual"
           description="Gestão de conteúdo multimídia"
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <AdminBlock 
             title="Central de Vídeos" 
             color="purple" 
@@ -268,6 +269,14 @@ export default function AdminDashboard() {
             subtitle="Álbuns e eventos"
             manageHref="/admin/galeria/gerenciar" 
             addHref="/admin/galeria"
+          />
+          <AdminBlock 
+            title="Fotos do Site" 
+            color="purple" 
+            icon={<Layers size={24} />}
+            subtitle="Todas as seções"
+            manageHref="/admin/gerenciar-secoes" 
+            addHref="/admin/adicionar-secoes"
           />
         </div>
 
