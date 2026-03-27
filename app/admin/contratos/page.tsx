@@ -182,13 +182,13 @@ export default function ContractsPage() {
         const BOTTOM = H - 20;
         let y = 25;
 
-        const nome      = contract.nome?.toUpperCase() || "___________________________";
-        const cpf       = contract.cpf       || "___________________________";
-        const rg        = contract.rg        || "_______________";
+        const nome = contract.nome?.toUpperCase() || "___________________________";
+        const cpf = contract.cpf || "___________________________";
+        const rg = contract.rg || "_______________";
         const profissao = contract.profissao || "_______________";
-        const natural   = contract.naturalidade || "_______________";
-        const nasc      = contract.nascimento
-            ? new Date(contract.nascimento).toLocaleDateString("pt-BR")
+        const natural = contract.naturalidade || "_______________";
+        const nasc = contract.nascimento
+            ? contract.nascimento.split("-").reverse().join("/")  // "2005-01-18" → "18/01/2005"
             : "__/__/____";
 
         const newPageIfNeeded = (needed = 18) => {
@@ -196,7 +196,7 @@ export default function ContractsPage() {
         };
 
         const text = (str: string, xPos: number, yPos: number, opts: any = {}) => {
-            const { size = 10, bold = false, italic = false, align = "left", color = [20,20,20] } = opts;
+            const { size = 10, bold = false, italic = false, align = "left", color = [20, 20, 20] } = opts;
             pdf.setFontSize(size);
             pdf.setFont("times", bold && italic ? "bolditalic" : bold ? "bold" : italic ? "italic" : "normal");
             pdf.setTextColor(color[0], color[1], color[2]);
@@ -204,7 +204,7 @@ export default function ContractsPage() {
         };
 
         const para = (str: string, opts: any = {}) => {
-            const { size = 10, bold = false, italic = false, color = [20,20,20] } = opts;
+            const { size = 10, bold = false, italic = false, color = [20, 20, 20] } = opts;
             pdf.setFontSize(size);
             pdf.setFont("times", bold && italic ? "bolditalic" : bold ? "bold" : italic ? "italic" : "normal");
             pdf.setTextColor(color[0], color[1], color[2]);
@@ -249,14 +249,14 @@ export default function ContractsPage() {
         // Cabeçalho
         text("CONTRATO DE ADESÃO DE SÓCIO USUÁRIO (COLABORADOR)", W / 2, y, { size: 12, bold: true, align: "center" });
         y += 7;
-        text("Protect Clube Mineiro de Tiro — CNPJ 01.244.200/0001-52", W / 2, y, { size: 9, align: "center", color: [80,80,80] });
+        text("Protect Clube Mineiro de Tiro — CNPJ 01.244.200/0001-52", W / 2, y, { size: 9, align: "center", color: [80, 80, 80] });
         y += 3;
-        pdf.setDrawColor(180,180,180); pdf.setLineWidth(0.5);
+        pdf.setDrawColor(180, 180, 180); pdf.setLineWidth(0.5);
         pdf.line(ML, y, ML + TW, y);
         y += 8;
 
         para(`Pelo presente instrumento particular de CONTRATO DE ADESÃO DE SÓCIO USUÁRIO (COLABORADOR), de um lado, Protect Clube Mineiro de Tiro, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 01.244.200/0001-52, com sede na Rua General Andrade Neves, 622, Bairro Gutierrez, Belo Horizonte/MG, e posteriormente na Rua dos Radialistas, 38, Bairro Balneário Água Limpa, Nova Lima/MG, neste ato representada por quem de direito, doravante simplesmente denominada PROTECT; e, de outro lado, o(a) Sr.(a) ${nome}, profissão ${profissao}, inscrito(a) no RG nº ${rg}, portador(a) do CPF nº ${cpf}, natural de ${natural}, nascido(a) em ${nasc}, doravante simplesmente denominado(a) SÓCIO USUÁRIO (COLABORADOR).`);
-        para("O proponente declara aceitar as cláusulas deste contrato sem restrições, bem como a eleição do foro da Comarca de Belo Horizonte/MG.", { italic: true, color: [60,60,60] });
+        para("O proponente declara aceitar as cláusulas deste contrato sem restrições, bem como a eleição do foro da Comarca de Belo Horizonte/MG.", { italic: true, color: [60, 60, 60] });
         y += 3;
 
         sectionTitle("1. DO PREÇO E DA FORMA DE PAGAMENTO");
@@ -295,41 +295,41 @@ export default function ContractsPage() {
         y += 10;
 
         const col = TW / 2 - 5;
-        pdf.setDrawColor(80,80,80); pdf.setLineWidth(0.4);
+        pdf.setDrawColor(80, 80, 80); pdf.setLineWidth(0.4);
         pdf.line(ML, y, ML + col, y);
         pdf.line(ML + col + 10, y, ML + TW, y);
         y += 5;
         text("PROTECT CLUBE MINEIRO DE TIRO", ML, y, { size: 9, bold: true });
         text(nome, ML + col + 10, y, { size: 9, bold: true });
         y += 4;
-        text("CNPJ: 01.244.200/0001-52", ML, y, { size: 8, color: [100,100,100] });
-        text(`CPF: ${cpf}`, ML + col + 10, y, { size: 8, color: [100,100,100] });
+        text("CNPJ: 01.244.200/0001-52", ML, y, { size: 8, color: [100, 100, 100] });
+        text(`CPF: ${cpf}`, ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 14;
 
         pdf.line(ML, y, ML + col, y);
         pdf.line(ML + col + 10, y, ML + TW, y);
         y += 5;
-        text("TESTEMUNHA 1", ML, y, { size: 8, color: [100,100,100] });
-        text("TESTEMUNHA 2", ML + col + 10, y, { size: 8, color: [100,100,100] });
+        text("TESTEMUNHA 1", ML, y, { size: 8, color: [100, 100, 100] });
+        text("TESTEMUNHA 2", ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 4;
         text("EMMERSON N. DO CARMO", ML, y, { size: 9 });
         text("NEWTON C. BAPTISTON", ML + col + 10, y, { size: 9 });
         y += 4;
-        text("CPF: 001.583.866-80", ML, y, { size: 8, color: [100,100,100] });
-        text("CPF: 584.978.896-49", ML + col + 10, y, { size: 8, color: [100,100,100] });
+        text("CPF: 001.583.866-80", ML, y, { size: 8, color: [100, 100, 100] });
+        text("CPF: 584.978.896-49", ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 12;
 
         const dataAtual = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
-        text(`Belo Horizonte/MG, ${dataAtual}`, W / 2, y, { size: 9, align: "center", color: [80,80,80] });
+        text(`Belo Horizonte/MG, ${dataAtual}`, W / 2, y, { size: 9, align: "center", color: [80, 80, 80] });
         y += 5;
-        text("Rua General Andrade Neves, 622, Grajaú, CEP 30431-128, Belo Horizonte/MG", W / 2, y, { size: 7.5, align: "center", color: [120,120,120] });
+        text("Rua General Andrade Neves, 622, Grajaú, CEP 30431-128, Belo Horizonte/MG", W / 2, y, { size: 7.5, align: "center", color: [120, 120, 120] });
         y += 4;
-        text("clube@grupoprotect.com.br  ·  grupoprotect.com.br  ·  (31) 3371-8500", W / 2, y, { size: 7.5, align: "center", color: [120,120,120] });
+        text("clube@grupoprotect.com.br  ·  grupoprotect.com.br  ·  (31) 3371-8500", W / 2, y, { size: 7.5, align: "center", color: [120, 120, 120] });
 
         const totalPages = (pdf.internal as any).getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             pdf.setPage(i);
-            pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(160,160,160);
+            pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(160, 160, 160);
             pdf.text(`${i} / ${totalPages}`, W - MR, H - 10, { align: "right" });
         }
     };
@@ -405,10 +405,10 @@ export default function ContractsPage() {
     const getStatusColor = (status?: string) => {
         switch (status?.toLowerCase()) {
             case "ativo":
-            case "assinado":  return "bg-emerald-100 text-emerald-800 border-emerald-300";
-            case "pendente":  return "bg-amber-100 text-amber-800 border-amber-300";
+            case "assinado": return "bg-emerald-100 text-emerald-800 border-emerald-300";
+            case "pendente": return "bg-amber-100 text-amber-800 border-amber-300";
             case "cancelado": return "bg-red-100 text-red-800 border-red-300";
-            default:          return "bg-slate-100 text-slate-800 border-slate-300";
+            default: return "bg-slate-100 text-slate-800 border-slate-300";
         }
     };
 
@@ -478,10 +478,10 @@ export default function ContractsPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {[
-                        { label: "Total",     value: contracts.length,                                                                                          color: "text-slate-900" },
-                        { label: "Assinados", value: contracts.filter(c => c.status === "assinado").length,                                                     color: "text-emerald-700" },
-                        { label: "Pendentes", value: contracts.filter(c => c.status === "pendente").length,                                                     color: "text-amber-700" },
-                        { label: "Hoje",      value: contracts.filter(c => getContractDate(c)?.toDateString() === new Date().toDateString()).length,             color: "text-blue-700" },
+                        { label: "Total", value: contracts.length, color: "text-slate-900" },
+                        { label: "Assinados", value: contracts.filter(c => c.status === "assinado").length, color: "text-emerald-700" },
+                        { label: "Pendentes", value: contracts.filter(c => c.status === "pendente").length, color: "text-amber-700" },
+                        { label: "Hoje", value: contracts.filter(c => getContractDate(c)?.toDateString() === new Date().toDateString()).length, color: "text-blue-700" },
                     ].map(s => (
                         <div key={s.label} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <p className="text-xs text-slate-500 uppercase font-bold mb-1">{s.label}</p>
@@ -645,7 +645,7 @@ export default function ContractsPage() {
                     <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-lg font-bold text-slate-900">Detalhes do Contrato</h2>
-                            <button onClick={() => setViewingContract(null)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                            <button onClick={() => setViewingContract(null)} className="p-2 hover:bg-slate-600 rounded-lg transition-colors bg-slate-500 cursor-pointer">
                                 <X size={18} />
                             </button>
                         </div>
@@ -664,12 +664,12 @@ export default function ContractsPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    ["CPF",          viewingContract.cpf],
-                                    ["RG",           viewingContract.rg],
-                                    ["Profissão",    viewingContract.profissao],
+                                    ["CPF", viewingContract.cpf],
+                                    ["RG", viewingContract.rg],
+                                    ["Profissão", viewingContract.profissao],
                                     ["Naturalidade", viewingContract.naturalidade],
-                                    ["Nascimento",   viewingContract.nascimento],
-                                    ["Versão",       viewingContract.versaoContrato],
+                                    ["Nascimento", viewingContract.nascimento],
+                                    ["Versão", viewingContract.versaoContrato],
                                 ].map(([k, v]) => (
                                     <div key={k} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                                         <p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">{k}</p>
