@@ -59,7 +59,6 @@ export default function ContractsPage() {
     const [emailSentIds, setEmailSentIds] = useState<Set<string>>(new Set());
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-    // Controle para não enviar email dos contratos existentes no carregamento inicial
     const knownIds = useRef<Set<string>>(new Set());
     const isFirstLoad = useRef(true);
 
@@ -91,14 +90,12 @@ export default function ContractsPage() {
                 setContracts(data);
                 setLoading(false);
 
-                // Primeira carga: registra IDs existentes sem enviar email
                 if (isFirstLoad.current) {
                     snapshot.docs.forEach(d => knownIds.current.add(d.id));
                     isFirstLoad.current = false;
                     return;
                 }
 
-                // Detecta apenas documentos realmente novos
                 const newContracts = snapshot.docChanges()
                     .filter(change => change.type === "added" && !knownIds.current.has(change.doc.id))
                     .map(change => ({ id: change.doc.id, ...change.doc.data() } as Contract));
@@ -140,22 +137,22 @@ export default function ContractsPage() {
         return () => unsubscribe();
     }, [user]);
 
-    // ─── Geração de PDF ────────────────────────────────────────────────────────
+    // ─── Helpers de data ───────────────────────────────────────────────────────
 
-    /**
-     * Gera o PDF e retorna como base64 (sem baixar o arquivo).
-     * Usado internamente para envio por email.
-     */
+    const getContractDate = (contract: Contract): Date | null => {
+        if (contract.dataAssinatura?.toDate) return contract.dataAssinatura.toDate();
+        if (contract.dataAssinaturaString) return new Date(contract.dataAssinaturaString);
+        return null;
+    };
+
+    // ─── PDF ───────────────────────────────────────────────────────────────────
+
     const generateContractPDFBase64 = (contract: Contract): string => {
         const pdf = new jsPDF("p", "mm", "a4");
         buildPDFContent(pdf, contract);
         return pdf.output("datauristring").split(",")[1];
     };
 
-    /**
-     * Gera o PDF e dispara o download no browser.
-     * Usado pelo botão de impressão.
-     */
     const generateContractPDF = (contract: Contract) => {
         setGeneratingPDF(contract.id);
         try {
@@ -170,10 +167,6 @@ export default function ContractsPage() {
         }
     };
 
-    /**
-     * Constrói o conteúdo do PDF em uma instância jsPDF recebida por parâmetro.
-     * Separado para ser reutilizável por generateContractPDFBase64 e generateContractPDF.
-     */
     const buildPDFContent = (pdf: jsPDF, contract: Contract) => {
         const W = pdf.internal.pageSize.getWidth();
         const H = pdf.internal.pageSize.getHeight();
@@ -188,8 +181,16 @@ export default function ContractsPage() {
         const profissao = contract.profissao || "_______________";
         const natural = contract.naturalidade || "_______________";
         const nasc = contract.nascimento
-            ? contract.nascimento.split("-").reverse().join("/")  // "2005-01-18" → "18/01/2005"
+            ? contract.nascimento.split("-").reverse().join("/")
             : "__/__/____";
+
+        // Usa a data de assinatura do contrato; fallback para hoje
+        const dataAssinatura = getContractDate(contract) ?? new Date();
+        const dataAtual = dataAssinatura.toLocaleDateString("pt-BR", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        });
 
         const newPageIfNeeded = (needed = 18) => {
             if (y + needed > BOTTOM) { pdf.addPage(); y = 25; }
@@ -319,7 +320,7 @@ export default function ContractsPage() {
         text("CPF: 584.978.896-49", ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 12;
 
-        const dataAtual = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+        // ← data de assinatura do contrato, não de hoje
         text(`Belo Horizonte/MG, ${dataAtual}`, W / 2, y, { size: 9, align: "center", color: [80, 80, 80] });
         y += 5;
         text("Rua General Andrade Neves, 622, Grajaú, CEP 30431-128, Belo Horizonte/MG", W / 2, y, { size: 7.5, align: "center", color: [120, 120, 120] });
@@ -334,7 +335,7 @@ export default function ContractsPage() {
         }
     };
 
-    // ─── Email manual (botão na tabela) ────────────────────────────────────────
+    // ─── Email manual ──────────────────────────────────────────────────────────
 
     const handleSendEmail = async (contract: Contract) => {
         if (!contract.email) {
@@ -412,12 +413,6 @@ export default function ContractsPage() {
         }
     };
 
-    const getContractDate = (contract: Contract): Date | null => {
-        if (contract.dataAssinatura?.toDate) return contract.dataAssinatura.toDate();
-        if (contract.dataAssinaturaString) return new Date(contract.dataAssinaturaString);
-        return null;
-    };
-
     // ─── Render ────────────────────────────────────────────────────────────────
 
     return (
@@ -425,12 +420,10 @@ export default function ContractsPage() {
 
             {/* Toast */}
             {toast && (
-                <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all
+                <div className={`fixed top-4 right-4 z-100 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all
                     ${toast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}
                 >
-                    {toast.type === "success"
-                        ? <CheckCircle size={16} />
-                        : <AlertCircle size={16} />}
+                    {toast.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                     {toast.message}
                 </div>
             )}
@@ -452,7 +445,7 @@ export default function ContractsPage() {
                             </p>
                         </div>
                     </div>
-                    <button onClick={() => setShowDebug(!showDebug)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                    <button onClick={() => setShowDebug(!showDebug)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
                         <Bug size={20} />
                     </button>
                 </div>
@@ -464,7 +457,7 @@ export default function ContractsPage() {
                     <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-sm font-mono">
                         <div className="flex justify-between items-center mb-2">
                             <strong className="text-amber-900">Debug</strong>
-                            <button onClick={() => setShowDebug(false)}><X size={16} /></button>
+                            <button onClick={() => setShowDebug(false)} className="cursor-pointer"><X size={16} /></button>
                         </div>
                         <p>Coleção: <strong>{COLLECTION_NAME}</strong></p>
                         <p>Total: <strong>{contracts.length}</strong></p>
@@ -505,7 +498,7 @@ export default function ContractsPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as any)}
-                        className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800"
+                        className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-pointer"
                     >
                         <option value="todos">Todos os status</option>
                         <option value="assinado">Assinados</option>
@@ -570,7 +563,7 @@ export default function ContractsPage() {
                                                         onChange={(e) => handleUpdateStatus(contract.id, e.target.value)}
                                                         onBlur={() => setEditingStatus(null)}
                                                         autoFocus
-                                                        className="px-2 py-1 border border-slate-300 rounded-lg text-xs font-medium"
+                                                        className="px-2 py-1 border border-slate-300 rounded-lg text-xs text-slate-950 font-medium cursor-pointer"
                                                     >
                                                         <option value="assinado">Assinado</option>
                                                         <option value="ativo">Ativo</option>
@@ -591,7 +584,7 @@ export default function ContractsPage() {
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         onClick={() => setViewingContract(contract)}
-                                                        className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                        className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                                                         title="Ver detalhes"
                                                     >
                                                         <Eye size={16} />
@@ -599,7 +592,7 @@ export default function ContractsPage() {
                                                     <button
                                                         onClick={() => generateContractPDF(contract)}
                                                         disabled={generatingPDF === contract.id}
-                                                        className="p-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-40"
+                                                        className="p-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
                                                         title="Baixar PDF"
                                                     >
                                                         {generatingPDF === contract.id
@@ -609,7 +602,7 @@ export default function ContractsPage() {
                                                     <button
                                                         onClick={() => handleSendEmail(contract)}
                                                         disabled={sendingEmail === contract.id}
-                                                        className={`p-2 rounded-lg transition-colors disabled:opacity-40
+                                                        className={`p-2 rounded-lg transition-colors disabled:opacity-40 cursor-pointer
                                                             ${emailSentIds.has(contract.id)
                                                                 ? "text-emerald-600 bg-emerald-50"
                                                                 : "text-slate-500 hover:text-violet-700 hover:bg-violet-50"}`}
@@ -623,7 +616,7 @@ export default function ContractsPage() {
                                                     </button>
                                                     <button
                                                         onClick={() => { setContractToDelete(contract.id); setShowDeleteModal(true); }}
-                                                        className="p-2 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="p-2 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                                         title="Excluir"
                                                     >
                                                         <Trash2 size={16} />
@@ -645,8 +638,11 @@ export default function ContractsPage() {
                     <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-lg font-bold text-slate-900">Detalhes do Contrato</h2>
-                            <button onClick={() => setViewingContract(null)} className="p-2 hover:bg-slate-600 rounded-lg transition-colors bg-slate-500 cursor-pointer">
-                                <X size={18} />
+                            <button
+                                onClick={() => setViewingContract(null)}
+                                className="p-2 hover:bg-slate-600 rounded-lg transition-colors bg-slate-500 cursor-pointer"
+                            >
+                                <X size={18} className="text-white" />
                             </button>
                         </div>
                         <div className="p-6 space-y-5">
@@ -681,7 +677,7 @@ export default function ContractsPage() {
                                 <button
                                     onClick={() => generateContractPDF(viewingContract)}
                                     disabled={generatingPDF === viewingContract.id}
-                                    className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                    className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                                 >
                                     {generatingPDF === viewingContract.id
                                         ? <><RefreshCw size={18} className="animate-spin" /> Gerando PDF...</>
@@ -690,7 +686,7 @@ export default function ContractsPage() {
                                 <button
                                     onClick={() => handleSendEmail(viewingContract)}
                                     disabled={sendingEmail === viewingContract.id || !viewingContract.email}
-                                    className={`flex-1 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50
+                                    className={`flex-1 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer
                                         ${emailSentIds.has(viewingContract.id)
                                             ? "bg-emerald-600 text-white hover:bg-emerald-700"
                                             : "bg-violet-600 text-white hover:bg-violet-700"}`}
@@ -722,13 +718,13 @@ export default function ContractsPage() {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { setShowDeleteModal(false); setContractToDelete(null); }}
-                                className="flex-1 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                                className="flex-1 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={() => contractToDelete && handleDeleteContract(contractToDelete)}
-                                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+                                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors cursor-pointer"
                             >
                                 Excluir
                             </button>

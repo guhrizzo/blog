@@ -249,7 +249,7 @@ export default function ManagePhotoSectionsPage() {
                 <button
                   key={col.value}
                   onClick={() => setActiveTab(col.value)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
                     isActive
                       ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/20"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"

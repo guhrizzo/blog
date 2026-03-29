@@ -1,10 +1,5 @@
-import React from 'react';
-import AdminBlog from './components/AdminBlog';
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-   <div>
-      
-   </div>
-  );
+  redirect("/login");
 }

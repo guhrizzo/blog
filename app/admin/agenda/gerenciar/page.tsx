@@ -70,7 +70,7 @@ export default function GerenciarAgenda() {
           </div>
 
           <Link 
-            href="/admin/agenda/criar" 
+            href="/admin/agenda" 
             className="bg-amber-500 hover:bg-amber-600 text-black px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
           >
             + Novo Evento
