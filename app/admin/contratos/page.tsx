@@ -41,6 +41,22 @@ interface Contract {
     createdAt?: Timestamp;
 }
 
+// ─── Carrega imagem como base64 via canvas ─────────────────────────────────────
+const loadImageAsBase64 = (src: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext("2d")!.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+        img.src = src;
+    });
+
 export default function ContractsPage() {
     const router = useRouter();
     const [contracts, setContracts] = useState<Contract[]>([]);
@@ -59,12 +75,26 @@ export default function ContractsPage() {
     const [emailSentIds, setEmailSentIds] = useState<Set<string>>(new Set());
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+    // Cache das assinaturas em base64 — carregadas uma única vez
+    const signaturesRef = useRef<{ s1: string; s2: string; s3: string } | null>(null);
+
     const knownIds = useRef<Set<string>>(new Set());
     const isFirstLoad = useRef(true);
 
     const showToast = (message: string, type: "success" | "error") => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 4000);
+    };
+
+    const getSignatures = async () => {
+        if (signaturesRef.current) return signaturesRef.current;
+        const [s1, s2, s3] = await Promise.all([
+            loadImageAsBase64("/assinatura1.png"),
+            loadImageAsBase64("/assinatura2.png"),
+            loadImageAsBase64("/assinatura3.png"),
+        ]);
+        signaturesRef.current = { s1, s2, s3 };
+        return signaturesRef.current;
     };
 
     useEffect(() => {
@@ -102,12 +132,9 @@ export default function ContractsPage() {
 
                 for (const contract of newContracts) {
                     knownIds.current.add(contract.id);
-
                     if (!contract.email) continue;
-
                     try {
-                        const pdfBase64 = generateContractPDFBase64(contract);
-
+                        const pdfBase64 = await generateContractPDFBase64(contract);
                         const res = await fetch("/api/send-contract", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -116,9 +143,9 @@ export default function ContractsPage() {
                                 email: contract.email,
                                 cpf: contract.cpf,
                                 pdfBase64,
+                                cc: "clube@grupoprotect.com.br",
                             }),
                         });
-
                         if (res.ok) {
                             setEmailSentIds(prev => new Set([...prev, contract.id]));
                             showToast(`Email enviado para ${contract.nome}`, "success");
@@ -147,17 +174,19 @@ export default function ContractsPage() {
 
     // ─── PDF ───────────────────────────────────────────────────────────────────
 
-    const generateContractPDFBase64 = (contract: Contract): string => {
+    const generateContractPDFBase64 = async (contract: Contract): Promise<string> => {
+        const sigs = await getSignatures();
         const pdf = new jsPDF("p", "mm", "a4");
-        buildPDFContent(pdf, contract);
+        buildPDFContent(pdf, contract, sigs);
         return pdf.output("datauristring").split(",")[1];
     };
 
-    const generateContractPDF = (contract: Contract) => {
+    const generateContractPDF = async (contract: Contract) => {
         setGeneratingPDF(contract.id);
         try {
+            const sigs = await getSignatures();
             const pdf = new jsPDF("p", "mm", "a4");
-            buildPDFContent(pdf, contract);
+            buildPDFContent(pdf, contract, sigs);
             const fileName = `contrato_${contract.nome?.replace(/\s+/g, "_").toLowerCase()}_${new Date().toISOString().split("T")[0]}.pdf`;
             pdf.save(fileName);
         } catch (err: any) {
@@ -167,7 +196,11 @@ export default function ContractsPage() {
         }
     };
 
-    const buildPDFContent = (pdf: jsPDF, contract: Contract) => {
+    const buildPDFContent = (
+        pdf: jsPDF,
+        contract: Contract,
+        sigs: { s1: string; s2: string; s3: string }
+    ) => {
         const W = pdf.internal.pageSize.getWidth();
         const H = pdf.internal.pageSize.getHeight();
         const ML = 25, MR = 25;
@@ -184,7 +217,6 @@ export default function ContractsPage() {
             ? contract.nascimento.split("-").reverse().join("/")
             : "__/__/____";
 
-        // Usa a data de assinatura do contrato; fallback para hoje
         const dataAssinatura = getContractDate(contract) ?? new Date();
         const dataAtual = dataAssinatura.toLocaleDateString("pt-BR", {
             day: "numeric",
@@ -247,7 +279,7 @@ export default function ContractsPage() {
             y += 3;
         };
 
-        // Cabeçalho
+        // ── Cabeçalho ──────────────────────────────────────────────────────────
         text("CONTRATO DE ADESÃO DE SÓCIO USUÁRIO (COLABORADOR)", W / 2, y, { size: 12, bold: true, align: "center" });
         y += 7;
         text("Protect Clube Mineiro de Tiro — CNPJ 01.244.200/0001-52", W / 2, y, { size: 9, align: "center", color: [80, 80, 80] });
@@ -289,27 +321,43 @@ export default function ContractsPage() {
         para("É expressamente proibido o ingresso e a utilização de armas sem registro no SIGMA ou no SINARM. É obrigatório transportar as armas desmuniciadas e usar óculos e protetores auriculares.");
         para("É EXPRESSAMENTE PROIBIDO O INGRESSO E A UTILIZAÇÃO DE ARMAS E MUNIÇÕES SEM PROCEDÊNCIA LEGAL E JUSTIFICADA.", { bold: true });
 
-        // Assinaturas
-        newPageIfNeeded(70);
+        // ── Assinaturas ────────────────────────────────────────────────────────
+        newPageIfNeeded(90);
         y += 5;
         para("E, por estarem justas e contratadas, firmam o presente em 02 (duas) vias, na presença das testemunhas.");
-        y += 10;
+        y += 6;
 
-        const col = TW / 2 - 5;
+        const col = TW / 2 - 5;   // largura de cada coluna
+        const sigH = 18;           // altura reservada para imagem (mm)
+        const sigW = 45;           // largura máxima da imagem (mm)
+
+        // ── Linha 1: Protect (esq) + Sócio (dir) ──────────────────────────────
+        try { pdf.addImage(sigs.s2, "PNG", ML, y, sigW, sigH, undefined, "FAST"); } catch (_) {}
+        // Sócio: espaço em branco intencional (sem imagem de assinatura)
+
+        y += sigH + 1;
+
         pdf.setDrawColor(80, 80, 80); pdf.setLineWidth(0.4);
         pdf.line(ML, y, ML + col, y);
         pdf.line(ML + col + 10, y, ML + TW, y);
-        y += 5;
+        y += 4;
         text("PROTECT CLUBE MINEIRO DE TIRO", ML, y, { size: 9, bold: true });
         text(nome, ML + col + 10, y, { size: 9, bold: true });
         y += 4;
         text("CNPJ: 01.244.200/0001-52", ML, y, { size: 8, color: [100, 100, 100] });
         text(`CPF: ${cpf}`, ML + col + 10, y, { size: 8, color: [100, 100, 100] });
-        y += 14;
+
+        y += 16;
+
+        // ── Linha 2: Testemunha 1 (esq) + Testemunha 2 (dir) ──────────────────
+        try { pdf.addImage(sigs.s1, "PNG", ML, y, sigW, sigH, undefined, "FAST"); } catch (_) {}
+        try { pdf.addImage(sigs.s3, "PNG", ML + col + 10, y, sigW, sigH, undefined, "FAST"); } catch (_) {}
+
+        y += sigH + 1;
 
         pdf.line(ML, y, ML + col, y);
         pdf.line(ML + col + 10, y, ML + TW, y);
-        y += 5;
+        y += 4;
         text("TESTEMUNHA 1", ML, y, { size: 8, color: [100, 100, 100] });
         text("TESTEMUNHA 2", ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 4;
@@ -320,13 +368,13 @@ export default function ContractsPage() {
         text("CPF: 584.978.896-49", ML + col + 10, y, { size: 8, color: [100, 100, 100] });
         y += 12;
 
-        // ← data de assinatura do contrato, não de hoje
         text(`Belo Horizonte/MG, ${dataAtual}`, W / 2, y, { size: 9, align: "center", color: [80, 80, 80] });
         y += 5;
         text("Rua General Andrade Neves, 622, Grajaú, CEP 30431-128, Belo Horizonte/MG", W / 2, y, { size: 7.5, align: "center", color: [120, 120, 120] });
         y += 4;
         text("clube@grupoprotect.com.br  ·  grupoprotect.com.br  ·  (31) 3371-8500", W / 2, y, { size: 7.5, align: "center", color: [120, 120, 120] });
 
+        // ── Numeração de páginas ───────────────────────────────────────────────
         const totalPages = (pdf.internal as any).getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             pdf.setPage(i);
@@ -344,7 +392,7 @@ export default function ContractsPage() {
         }
         setSendingEmail(contract.id);
         try {
-            const pdfBase64 = generateContractPDFBase64(contract);
+            const pdfBase64 = await generateContractPDFBase64(contract);
             const res = await fetch("/api/send-contract", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -353,6 +401,7 @@ export default function ContractsPage() {
                     email: contract.email,
                     cpf: contract.cpf,
                     pdfBase64,
+                    cc: "clube@grupoprotect.com.br",
                 }),
             });
             if (res.ok) {
