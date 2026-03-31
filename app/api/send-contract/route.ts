@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await resend.emails.send({
       from: "Protect Clube de Tiro <contato@clube.gustavorizzo.net.br>",
       to: [email],
-      // BCC comentado — reative após confirmar que o envio funciona
-      // bcc: ["clube@grupoprotect.com.br"],
+      
+      cc: ["clube@grupoprotect.com.br"],
       subject: "Seu contrato de adesão — Protect Clube Mineiro de Tiro",
       html: buildEmailHtml(nome),
       attachments: [
