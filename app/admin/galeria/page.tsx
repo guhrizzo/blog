@@ -1,65 +1,142 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
-import { Image as ImageIcon, ArrowLeft, Loader2, UploadCloud } from "lucide-react";
+import { Image as ImageIcon, ArrowLeft, Loader2, UploadCloud, X, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { toast, Toaster } from "sonner";
 
+type PhotoItem = {
+  id: string;
+  file: File;
+  preview: string;
+  title: string;
+  category: string;
+  status: "idle" | "uploading" | "success" | "error";
+  error?: string;
+};
+
+const CATEGORIES = ["Treinamento", "Eventos", "Clube"];
+
 export default function AddPhotoPage() {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("Treinamento");
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [globalCategory, setGlobalCategory] = useState("Treinamento");
 
-  // Função para lidar com a seleção da imagem e gerar preview
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
-    }
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newPhotos: PhotoItem[] = files.map((file) => ({
+      id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      file,
+      preview: URL.createObjectURL(file),
+      title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      category: globalCategory,
+      status: "idle",
+    }));
+
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    // Reset input so same files can be re-added if needed
+    e.target.value = "";
+  };
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        f.type.startsWith("image/")
+      );
+      if (!files.length) return;
+
+      const newPhotos: PhotoItem[] = files.map((file) => ({
+        id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+        category: globalCategory,
+        status: "idle",
+      }));
+
+      setPhotos((prev) => [...prev, ...newPhotos]);
+    },
+    [globalCategory]
+  );
+
+  const updatePhoto = (id: string, field: "title" | "category", value: string) => {
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
+  };
+
+  const removePhoto = (id: string) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const applyGlobalCategory = () => {
+    setPhotos((prev) => prev.map((p) => ({ ...p, category: globalCategory })));
+    toast.success("Categoria aplicada a todas as fotos.");
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!file || !title) {
-      return toast.error("Por favor, selecione uma imagem e dê um título.");
+    if (photos.length === 0) {
+      return toast.error("Adicione pelo menos uma foto.");
+    }
+
+    const invalid = photos.find((p) => !p.title.trim());
+    if (invalid) {
+      return toast.error("Todas as fotos precisam ter um título.");
     }
 
     setUploading(true);
-    const toastId = toast.loading("Enviando foto para a galeria...");
+    const toastId = toast.loading(`Enviando ${photos.length} foto(s)...`);
 
-    try {
-      // 1. Upload da imagem para o Firebase Storage
-      const storageRef = ref(storage, `galeria/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+    let successCount = 0;
+    let errorCount = 0;
 
-      // 2. Salvar dados no Firestore
-      await addDoc(collection(db, "galeria"), {
-        title,
-        category,
-        url: downloadURL,
-        createdAt: serverTimestamp(),
-      });
+    for (const photo of photos) {
+      // Mark as uploading
+      setPhotos((prev) =>
+        prev.map((p) => (p.id === photo.id ? { ...p, status: "uploading" } : p))
+      );
 
-      toast.success("Foto publicada com sucesso!", { id: toastId });
-      
-      // 3. Redirecionar após sucesso
-      setTimeout(() => {
-        router.push("/admin"); // Ou para a página de gerenciar fotos
-      }, 1500);
+      try {
+        const storageRef = ref(storage, `galeria/${Date.now()}_${photo.file.name}`);
+        const snapshot = await uploadBytes(storageRef, photo.file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
-    } catch (error: any) {
-      console.error(error);
-      toast.error("Erro ao fazer upload: " + error.message, { id: toastId });
+        await addDoc(collection(db, "galeria"), {
+          title: photo.title,
+          category: photo.category,
+          url: downloadURL,
+          createdAt: serverTimestamp(),
+        });
+
+        setPhotos((prev) =>
+          prev.map((p) => (p.id === photo.id ? { ...p, status: "success" } : p))
+        );
+        successCount++;
+      } catch (error: any) {
+        setPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photo.id ? { ...p, status: "error", error: error.message } : p
+          )
+        );
+        errorCount++;
+      }
+    }
+
+    if (errorCount === 0) {
+      toast.success(`${successCount} foto(s) publicada(s) com sucesso!`, { id: toastId });
+      setTimeout(() => router.push("/admin"), 1800);
+    } else {
+      toast.error(`${errorCount} erro(s). ${successCount} foto(s) enviada(s).`, { id: toastId });
       setUploading(false);
     }
   };
@@ -68,10 +145,10 @@ export default function AddPhotoPage() {
     <div className="min-h-screen bg-slate-50 p-6 font-sans text-slate-900">
       <Toaster position="top-right" richColors />
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Voltar */}
-        <Link 
-          href="/admin" 
+        <Link
+          href="/admin"
           className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-8 font-medium"
         >
           <ArrowLeft size={20} /> Voltar ao Painel
@@ -83,91 +160,176 @@ export default function AddPhotoPage() {
             <div className="p-2 bg-green-500 rounded-lg text-white">
               <ImageIcon size={24} />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Adicionar à Galeria</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              Adicionar à Galeria
+            </h1>
           </div>
-          <p className="text-slate-500 italic">As fotos aparecerão instantaneamente na galeria pública do site.</p>
+          <p className="text-slate-500 italic">
+            Selecione múltiplas fotos de uma vez. Cada uma pode ter título e categoria individuais.
+          </p>
         </div>
 
-        {/* Formulário */}
         <form onSubmit={handleUpload} className="space-y-6">
-          
-          {/* Card de Upload */}
-          <div className="bg-white rounded-32 border border-slate-200 p-8 shadow-sm">
-            <div className="grid gap-6">
-              
-              {/* Título */}
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                  Título da Fotografia
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Treinamento de Elite - Módulo I"
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all"
-                />
-              </div>
-
-              {/* Categoria */}
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                  Categoria
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all appearance-none cursor-pointer"
-                >
-                  <option value="Treinamento">Treinamento</option>
-                  <option value="Eventos">Eventos</option>
-                  <option value="Clube">Clube</option>
-                </select>
-              </div>
-
-              {/* Área da Imagem */}
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                  Arquivo de Imagem
-                </label>
-                <div className="relative group min-h-75 w-full rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-green-500 transition-all flex flex-col items-center justify-center overflow-hidden">
-                  
-                  {preview ? (
-                    <>
-                      <img src={preview} alt="Preview" className="w-full h-full object-cover absolute inset-0" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                        <p className="text-white font-bold flex items-center gap-2">
-                          <UploadCloud /> Trocar Imagem
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center p-10">
-                      <UploadCloud size={48} className="mx-auto text-slate-300 mb-4" />
-                      <p className="text-slate-500 font-medium">Arraste ou clique para selecionar</p>
-                      <p className="text-slate-400 text-xs mt-1">PNG, JPG ou WEBP (Máx. 5MB)</p>
-                    </div>
-                  )}
-
-                  <input
-                    required={!preview}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    disabled={uploading}
-                  />
-                </div>
-              </div>
+          {/* Zona de Drop / Upload */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="relative group min-h-48 w-full rounded-3xl border-2 border-dashed border-slate-200 bg-white hover:bg-slate-50 hover:border-green-500 transition-all flex flex-col items-center justify-center overflow-hidden cursor-pointer shadow-sm"
+          >
+            <div className="text-center p-10 pointer-events-none">
+              <UploadCloud size={48} className="mx-auto text-slate-300 mb-4 group-hover:text-green-400 transition-colors" />
+              <p className="text-slate-500 font-semibold text-lg">
+                Arraste as fotos aqui ou clique para selecionar
+              </p>
+              <p className="text-slate-400 text-sm mt-1">
+                PNG, JPG ou WEBP — várias fotos ao mesmo tempo
+              </p>
             </div>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFilesChange}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              disabled={uploading}
+            />
           </div>
 
-          {/* Botão de Ação */}
+          {/* Categoria Global */}
+          {photos.length > 1 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Aplicar categoria a todas
+                </p>
+                <select
+                  value={globalCategory}
+                  onChange={(e) => setGlobalCategory(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 transition-all appearance-none cursor-pointer"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={applyGlobalCategory}
+                className="shrink-0 px-5 py-3 bg-slate-100 hover:bg-green-500 hover:text-white text-slate-700 font-bold rounded-xl transition-all text-sm"
+              >
+                Aplicar a todas
+              </button>
+            </div>
+          )}
+
+          {/* Lista de Fotos */}
+          {photos.length > 0 && (
+            <div className="space-y-4">
+              {photos.map((photo, index) => (
+                <div
+                  key={photo.id}
+                  className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                    photo.status === "success"
+                      ? "border-green-300 bg-green-50"
+                      : photo.status === "error"
+                      ? "border-red-300 bg-red-50"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex gap-4 p-4">
+                    {/* Preview */}
+                    <div className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-slate-100">
+                      <img
+                        src={photo.preview}
+                        alt={photo.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Status overlay */}
+                      {photo.status === "uploading" && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 size={22} className="text-white animate-spin" />
+                        </div>
+                      )}
+                      {photo.status === "success" && (
+                        <div className="absolute inset-0 bg-green-500/70 flex items-center justify-center">
+                          <CheckCircle2 size={22} className="text-white" />
+                        </div>
+                      )}
+                      {photo.status === "error" && (
+                        <div className="absolute inset-0 bg-red-500/70 flex items-center justify-center">
+                          <AlertCircle size={22} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fields */}
+                    <div className="flex-1 grid sm:grid-cols-2 gap-3 min-w-0">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                          Título
+                        </label>
+                        <input
+                          required
+                          type="text"
+                          value={photo.title}
+                          onChange={(e) => updatePhoto(photo.id, "title", e.target.value)}
+                          placeholder="Título da foto"
+                          disabled={uploading}
+                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all text-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                          Categoria
+                        </label>
+                        <select
+                          value={photo.category}
+                          onChange={(e) => updatePhoto(photo.id, "category", e.target.value)}
+                          disabled={uploading}
+                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-green-500 focus:bg-white transition-all appearance-none text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          {CATEGORIES.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {photo.error && (
+                        <p className="sm:col-span-2 text-xs text-red-500 font-medium">
+                          Erro: {photo.error}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Remove button */}
+                    {photo.status !== "uploading" && photo.status !== "success" && (
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(photo.id)}
+                        disabled={uploading}
+                        className="shrink-0 self-start p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-30"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Counter */}
+          {photos.length > 0 && (
+            <p className="text-sm text-slate-400 text-center">
+              {photos.length} foto{photos.length !== 1 ? "s" : ""} selecionada{photos.length !== 1 ? "s" : ""}
+            </p>
+          )}
+
+          {/* Submit */}
           <button
             type="submit"
-            disabled={uploading}
-            className="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-green-500 hover:shadow-green-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={uploading || photos.length === 0}
+            className="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-green-500 hover:shadow-green-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             {uploading ? (
               <>
@@ -175,7 +337,7 @@ export default function AddPhotoPage() {
                 Publicando...
               </>
             ) : (
-              "Publicar na Galeria"
+              `Publicar ${photos.length > 0 ? photos.length + " " : ""}foto${photos.length !== 1 ? "s" : ""} na Galeria`
             )}
           </button>
         </form>
