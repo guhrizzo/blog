@@ -45,9 +45,9 @@ export default function DirectUploadPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const invalid = items.find((i) => !i.videoFile || !i.thumbFile || !i.title.trim());
+    const invalid = items.find((i) => !i.videoFile || !i.title.trim());
     if (invalid) {
-      return alert("Preencha título, capa e vídeo em todos os itens.");
+      return alert("Preencha título e vídeo em todos os itens.");
     }
 
     setUploading(true);
@@ -56,10 +56,13 @@ export default function DirectUploadPage() {
       update(item.id, { status: "uploading", progress: 0 });
 
       try {
-        // 1. Upload da thumbnail
-        const thumbRef = ref(storage, `thumbnails/${Date.now()}-${item.thumbFile!.name}`);
-        await uploadBytes(thumbRef, item.thumbFile!);
-        const thumbURL = await getDownloadURL(thumbRef);
+        // 1. Upload da thumbnail (opcional)
+        let thumbURL = "";
+        if (item.thumbFile) {
+          const thumbRef = ref(storage, `thumbnails/${Date.now()}-${item.thumbFile.name}`);
+          await uploadBytes(thumbRef, item.thumbFile);
+          thumbURL = await getDownloadURL(thumbRef);
+        }
 
         // 2. Upload do vídeo com progresso
         const videoRef = ref(storage, `videos/${Date.now()}-${item.videoFile!.name}`);
@@ -100,12 +103,6 @@ export default function DirectUploadPage() {
 
     setUploading(false);
 
-    const allSuccess = items.every((i) => {
-      // re-read from state isn't possible here, so we check by seeing if no errors
-      return true;
-    });
-
-    // Check final state
     setItems((prev) => {
       const hasErrors = prev.some((i) => i.status === "error");
       if (!hasErrors) {
@@ -196,11 +193,13 @@ export default function DirectUploadPage() {
                   {/* Thumbnail */}
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Capa
+                      Capa{" "}
+                      <span className="text-slate-300 normal-case font-normal tracking-normal">
+                        (opcional)
+                      </span>
                     </label>
                     <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-3 hover:bg-slate-50 transition-colors text-center cursor-pointer">
                       <input
-                        required={!item.thumbFile}
                         type="file"
                         accept="image/*"
                         disabled={uploading}
