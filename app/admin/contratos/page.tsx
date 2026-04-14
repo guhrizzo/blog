@@ -38,6 +38,8 @@ interface Contract {
     versaoContrato?: string;
     status?: string;
     hash?: string;
+    emailEnviado?: boolean;
+    dataEnvioEmail?: Timestamp;
     createdAt?: Timestamp;
 }
 
@@ -120,6 +122,15 @@ export default function ContractsPage() {
                 setContracts(data);
                 setLoading(false);
 
+                // Carregar IDs de emails já enviados
+                const emailsEnviados = new Set<string>();
+                data.forEach(contract => {
+                    if (contract.emailEnviado) {
+                        emailsEnviados.add(contract.id);
+                    }
+                });
+                setEmailSentIds(emailsEnviados);
+
                 if (isFirstLoad.current) {
                     snapshot.docs.forEach(d => knownIds.current.add(d.id));
                     isFirstLoad.current = false;
@@ -132,7 +143,8 @@ export default function ContractsPage() {
 
                 for (const contract of newContracts) {
                     knownIds.current.add(contract.id);
-                    if (!contract.email) continue;
+                    // Verificar se email já foi enviado
+                    if (!contract.email || contract.emailEnviado) continue;
                     try {
                         const pdfBase64 = await generateContractPDFBase64(contract);
                         const res = await fetch("/api/send-contract", {
@@ -147,6 +159,11 @@ export default function ContractsPage() {
                             }),
                         });
                         if (res.ok) {
+                            // Marcar email como enviado no Firebase
+                            await updateDoc(doc(db, COLLECTION_NAME, contract.id), {
+                                emailEnviado: true,
+                                dataEnvioEmail: Timestamp.now()
+                            });
                             setEmailSentIds(prev => new Set([...prev, contract.id]));
                             showToast(`Email enviado para ${contract.nome}`, "success");
                         } else {
@@ -405,6 +422,11 @@ export default function ContractsPage() {
                 }),
             });
             if (res.ok) {
+                // Marcar email como enviado no Firebase
+                await updateDoc(doc(db, COLLECTION_NAME, contract.id), {
+                    emailEnviado: true,
+                    dataEnvioEmail: Timestamp.now()
+                });
                 setEmailSentIds(prev => new Set([...prev, contract.id]));
                 showToast(`Email enviado para ${contract.email}`, "success");
             } else {
