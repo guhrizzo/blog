@@ -25,7 +25,8 @@ import {
   CheckCircle2,
   AlertCircle,
   MessageSquare,
-  Layers
+  Layers,
+  PenTool
 } from "lucide-react";
 
 // Tipagem para dados mockados de contratos (substituir por dados reais do Firebase)
@@ -211,9 +212,9 @@ export default function AdminDashboard() {
           title="Gestão de Contratos"
           description="Assinaturas digitais e documentação de sócios"
         />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
           {/* Card Principal de Contratos */}
-          <div className="lg:col-span-2 bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden group">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-emerald-50 to-transparent rounded-bl-full opacity-50"></div>
             
             <div className="relative flex flex-col h-full">
@@ -238,6 +239,40 @@ export default function AdminDashboard() {
                 <Link 
                   href="/admin/contratos" 
                   className="flex-1 flex items-center justify-center gap-2 py-4 bg-white text-emerald-700 border-2 border-emerald-200 rounded-2xl font-bold hover:bg-emerald-50 hover:border-emerald-300 transition-all text-sm uppercase tracking-wider group/btn"
+                >
+                  <Settings size={18} className="group-hover/btn:rotate-180 transition-transform duration-500" />
+                  Gerenciar Todos
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Card de Assinaturas */}
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-violet-50 to-transparent rounded-bl-full opacity-50"></div>
+            
+            <div className="relative flex flex-col h-full">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-linear-to-br from-violet-100 to-violet-50 rounded-2xl flex items-center justify-center text-violet-600 border border-violet-200 group-hover:scale-110 transition-transform duration-300">
+                    <PenTool size={32} />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-black text-slate-800">Assinaturas de Contratos</h4>
+                    <p className="text-slate-500 text-sm mt-1">Registro de assinaturas de clientes</p>
+                  </div>
+                </div>
+            
+              </div>
+
+          
+
+              {/* Ações */}
+              <div className="flex flex-col sm:flex-row gap-3 mt-auto">
+                
+                <Link 
+                  href="/admin/assinaturas" 
+                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-white text-violet-700 border-2 border-violet-200 rounded-2xl font-bold hover:bg-violet-50 hover:border-violet-300 transition-all text-sm uppercase tracking-wider group/btn"
                 >
                   <Settings size={18} className="group-hover/btn:rotate-180 transition-transform duration-500" />
                   Gerenciar Todos
