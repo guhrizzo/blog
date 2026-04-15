@@ -52,10 +52,10 @@ export async function POST(req: Request) {
     const pdfBuffer = Buffer.from(pdfBase64, "base64");
 
     console.log("🔑 RESEND_API_KEY presente:", !!process.env.RESEND_API_KEY);
-    console.log("📧 Reenviando para:", email);
+    console.log("📧 Enviando para:", email);
     console.log("📎 Tamanho do PDF:", pdfBuffer.length, "bytes");
 
-    // Envia para o cliente - MESMO EMAIL DO send-contract
+    // Envia para o cliente - EXATAMENTE IGUAL AO SEU PROJETO
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: "Contrato PROTECT <contrato@clube.gustavorizzo.net.br>",
       to: [email],
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
 
     console.log("✅ Email enviado ao cliente! ID:", clientData?.id);
 
-    // Envia para o clube (CC) - MESMO EMAIL DO send-contract
+    // Envia para o clube (CC) - EXATAMENTE IGUAL AO SEU PROJETO
     if (cc) {
       const { data: clubeData, error: clubeError } = await resend.emails.send({
         from: "Contrato PROTECT <contrato@clube.gustavorizzo.net.br>",
