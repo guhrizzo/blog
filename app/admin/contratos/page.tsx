@@ -147,10 +147,11 @@ export default function ContractsPage() {
                     if (!contract.email || contract.emailEnviado) continue;
                     try {
                         const pdfBase64 = await generateContractPDFBase64(contract);
-                        const res = await fetch("/api/send-contract", {
+                        const res = await fetch("/api/resend-contract", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
+                                contractId: contract.id,
                                 nome: contract.nome,
                                 email: contract.email,
                                 cpf: contract.cpf,
@@ -410,10 +411,13 @@ export default function ContractsPage() {
         setSendingEmail(contract.id);
         try {
             const pdfBase64 = await generateContractPDFBase64(contract);
-            const res = await fetch("/api/send-contract", {
+            
+            // Usa a rota de reenvio que verifica se já foi enviado
+            const res = await fetch("/api/resend-contract", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    contractId: contract.id,
                     nome: contract.nome,
                     email: contract.email,
                     cpf: contract.cpf,
@@ -458,10 +462,11 @@ export default function ContractsPage() {
             for (const contract of unsentContracts) {
                 try {
                     const pdfBase64 = await generateContractPDFBase64(contract);
-                    const res = await fetch("/api/send-contract", {
+                    const res = await fetch("/api/resend-contract", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
+                            contractId: contract.id,
                             nome: contract.nome,
                             email: contract.email,
                             cpf: contract.cpf,
