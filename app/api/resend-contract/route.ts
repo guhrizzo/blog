@@ -48,8 +48,28 @@ export async function POST(req: Request) {
       // Continua mesmo com erro, pois pode ser que o Firebase não esteja acessível
     }
 
-    // Converte base64 para Buffer
-    const pdfBuffer = Buffer.from(pdfBase64, "base64");
+    // Valida e limpa o pdfBase64
+    let cleanedBase64 = pdfBase64;
+    
+    // Se começar com data:application/pdf;base64, remove essa parte
+    if (pdfBase64.includes(";base64,")) {
+      cleanedBase64 = pdfBase64.split(";base64,")[1];
+    }
+    
+    // Remove qualquer quebra de linha
+    cleanedBase64 = cleanedBase64.replace(/\n/g, "").replace(/\r/g, "").trim();
+
+    // Converte base64 para Buffer com validação
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = Buffer.from(cleanedBase64, "base64");
+    } catch (e) {
+      console.error("❌ Erro ao converter Base64:", e);
+      return NextResponse.json(
+        { error: "PDF inválido ou corrompido" },
+        { status: 400 }
+      );
+    }
 
     console.log("🔑 RESEND_API_KEY presente:", !!process.env.RESEND_API_KEY);
     console.log("📧 Enviando para:", email);
