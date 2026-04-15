@@ -440,6 +440,66 @@ export default function ContractsPage() {
         }
     };
 
+    // ─── Reenviar emails não enviados ──────────────────────────────────
+
+    const handleResendUnsentEmails = async () => {
+        const unsentContracts = contracts.filter(c => !c.emailEnviado && c.email);
+        
+        if (unsentContracts.length === 0) {
+            showToast("Nenhum email pendente de envio", "error");
+            return;
+        }
+
+        setSendingEmail("batch");
+        let sentCount = 0;
+        let failedCount = 0;
+
+        try {
+            for (const contract of unsentContracts) {
+                try {
+                    const pdfBase64 = await generateContractPDFBase64(contract);
+                    const res = await fetch("/api/send-contract", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            nome: contract.nome,
+                            email: contract.email,
+                            cpf: contract.cpf,
+                            pdfBase64,
+                            cc: "clube@grupoprotect.com.br",
+                        }),
+                    });
+                    
+                    if (res.ok) {
+                        // Marcar email como enviado no Firebase
+                        await updateDoc(doc(db, COLLECTION_NAME, contract.id), {
+                            emailEnviado: true,
+                            dataEnvioEmail: Timestamp.now()
+                        });
+                        setEmailSentIds(prev => new Set([...prev, contract.id]));
+                        sentCount++;
+                    } else {
+                        failedCount++;
+                    }
+                } catch (err) {
+                    failedCount++;
+                }
+            }
+
+            if (sentCount > 0 && failedCount === 0) {
+                showToast(`${sentCount} email(s) enviado(s) com sucesso!`, "success");
+            } else if (sentCount > 0 && failedCount > 0) {
+                showToast(`${sentCount} enviado(s), ${failedCount} falharam`, "error");
+            } else {
+                showToast(`Falha ao enviar emails`, "error");
+            }
+        } catch (err: any) {
+            showToast("Erro ao processar reenvio em lote", "error");
+        } finally {
+            setSendingEmail(null);
+        }
+    };
+
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     const filteredContracts = contracts.filter(c => {
@@ -577,6 +637,24 @@ export default function ContractsPage() {
                         <option value="pendente">Pendentes</option>
                         <option value="cancelado">Cancelados</option>
                     </select>
+                    <button
+                        onClick={handleResendUnsentEmails}
+                        disabled={sendingEmail === "batch" || contracts.filter(c => !c.emailEnviado && c.email).length === 0}
+                        className="px-4 py-3 bg-violet-600 text-white rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                        title="Reenviar emails não enviados"
+                    >
+                        {sendingEmail === "batch" ? (
+                            <>
+                                <RefreshCw size={16} className="animate-spin" />
+                                Reenviando...
+                            </>
+                        ) : (
+                            <>
+                                <Mail size={16} />
+                                Reenviar Não Enviados ({contracts.filter(c => !c.emailEnviado && c.email).length})
+                            </>
+                        )}
+                    </button>
                 </div>
 
                 {/* Tabela */}
@@ -670,21 +748,21 @@ export default function ContractsPage() {
                                                             ? <RefreshCw size={16} className="animate-spin" />
                                                             : <Printer size={16} />}
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleSendEmail(contract)}
-                                                        disabled={sendingEmail === contract.id}
-                                                        className={`p-2 rounded-lg transition-colors disabled:opacity-40 cursor-pointer
-                                                            ${emailSentIds.has(contract.id)
-                                                                ? "text-emerald-600 bg-emerald-50"
-                                                                : "text-slate-500 hover:text-violet-700 hover:bg-violet-50"}`}
-                                                        title={emailSentIds.has(contract.id) ? "Email já enviado (clique para reenviar)" : "Enviar por email"}
-                                                    >
-                                                        {sendingEmail === contract.id
-                                                            ? <RefreshCw size={16} className="animate-spin" />
-                                                            : emailSentIds.has(contract.id)
-                                                                ? <CheckCircle size={16} />
-                                                                : <Mail size={16} />}
-                                                    </button>
+                                                     <button
+                                                         onClick={() => handleSendEmail(contract)}
+                                                         disabled={sendingEmail === contract.id}
+                                                         className={`p-2 rounded-lg transition-colors disabled:opacity-40 cursor-pointer
+                                                             ${emailSentIds.has(contract.id)
+                                                                 ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                 : "text-slate-500 hover:text-violet-700 hover:bg-violet-50"}`}
+                                                         title={emailSentIds.has(contract.id) ? "Email já enviado (clique para reenviar)" : "Enviar por email"}
+                                                     >
+                                                         {sendingEmail === contract.id
+                                                             ? <RefreshCw size={16} className="animate-spin" />
+                                                             : emailSentIds.has(contract.id)
+                                                                 ? <CheckCircle size={16} />
+                                                                 : <Mail size={16} />}
+                                                     </button>
                                                     <button
                                                         onClick={() => { setContractToDelete(contract.id); setShowDeleteModal(true); }}
                                                         className="p-2 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
@@ -744,31 +822,38 @@ export default function ContractsPage() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => generateContractPDF(viewingContract)}
-                                    disabled={generatingPDF === viewingContract.id}
-                                    className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
-                                >
-                                    {generatingPDF === viewingContract.id
-                                        ? <><RefreshCw size={18} className="animate-spin" /> Gerando PDF...</>
-                                        : <><Printer size={18} /> Baixar PDF</>}
-                                </button>
-                                <button
-                                    onClick={() => handleSendEmail(viewingContract)}
-                                    disabled={sendingEmail === viewingContract.id || !viewingContract.email}
-                                    className={`flex-1 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer
-                                        ${emailSentIds.has(viewingContract.id)
-                                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                            : "bg-violet-600 text-white hover:bg-violet-700"}`}
-                                >
-                                    {sendingEmail === viewingContract.id
-                                        ? <><RefreshCw size={18} className="animate-spin" /> Enviando...</>
-                                        : emailSentIds.has(viewingContract.id)
-                                            ? <><CheckCircle size={18} /> Email enviado</>
-                                            : <><Mail size={18} /> Enviar por email</>}
-                                </button>
-                            </div>
+                             <div className="flex gap-3">
+                                 <button
+                                     onClick={() => generateContractPDF(viewingContract)}
+                                     disabled={generatingPDF === viewingContract.id}
+                                     className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                                 >
+                                     {generatingPDF === viewingContract.id
+                                         ? <><RefreshCw size={18} className="animate-spin" /> Gerando PDF...</>
+                                         : <><Printer size={18} /> Baixar PDF</>}
+                                 </button>
+                                 {emailSentIds.has(viewingContract.id) ? (
+                                     <button
+                                         onClick={() => handleSendEmail(viewingContract)}
+                                         disabled={sendingEmail === viewingContract.id || !viewingContract.email}
+                                         className="flex-1 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                                     >
+                                         {sendingEmail === viewingContract.id
+                                             ? <><RefreshCw size={18} className="animate-spin" /> Reenviando...</>
+                                             : <><Mail size={18} /> Reenviar</>}
+                                     </button>
+                                 ) : (
+                                     <button
+                                         onClick={() => handleSendEmail(viewingContract)}
+                                         disabled={sendingEmail === viewingContract.id || !viewingContract.email}
+                                         className="flex-1 py-3.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                                     >
+                                         {sendingEmail === viewingContract.id
+                                             ? <><RefreshCw size={18} className="animate-spin" /> Enviando...</>
+                                             : <><Mail size={18} /> Enviar por email</>}
+                                     </button>
+                                 )}
+                             </div>
                         </div>
                     </div>
                 </div>
