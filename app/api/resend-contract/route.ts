@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verifica no Firebase se o email já foi enviado
+    // Verifica no Firebase se o contrato existe
     try {
       const contractRef = doc(db, "assinaturas_contrato", contractId);
       const contractSnap = await getDoc(contractRef);
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     console.log("📧 Reenviando para:", email);
     console.log("📎 Tamanho do PDF:", pdfBuffer.length, "bytes");
 
-    // Envia para o cliente
+    // Envia para o cliente - MESMO EMAIL DO send-contract
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: "Contrato PROTECT <contrato@clube.gustavorizzo.net.br>",
       to: [email],
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
               
               <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 24px 32px; text-align: center;">
                 <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #fff;">
-                  ✓ Seu Contrato de Adesão
+                  ✓ Contrato Assinado com Sucesso!
                 </h1>
               </div>
 
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
                 </p>
 
                 <p style="margin: 0 0 16px; font-size: 14px; color: #1e293b; line-height: 1.6;">
-                  Segue em anexo uma cópia do seu contrato de adesão para seus registros.
+                  Seu contrato de adesão foi assinado com sucesso! Segue em anexo uma cópia em PDF para seus registros.
                 </p>
 
                 <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
@@ -123,14 +123,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: clientError }, { status: 500 });
     }
 
-    console.log("✅ Email reenviado ao cliente! ID:", clientData?.id);
+    console.log("✅ Email enviado ao cliente! ID:", clientData?.id);
 
-    // Envia para o clube (CC)
+    // Envia para o clube (CC) - MESMO EMAIL DO send-contract
     if (cc) {
       const { data: clubeData, error: clubeError } = await resend.emails.send({
         from: "Contrato PROTECT <contrato@clube.gustavorizzo.net.br>",
         to: [cc],
-        subject: `Contrato Reenviado - ${nome}`,
+        subject: `Novo Contrato Assinado - ${nome}`,
         html: `
           <!DOCTYPE html>
           <html lang="pt-BR">
@@ -140,13 +140,13 @@ export async function POST(req: Request) {
                 
                 <div style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); padding: 24px 32px; text-align: center;">
                   <h1 style="margin: 0; font-size: 20px; font-weight: 900; color: #fff;">
-                    📧 Contrato Reenviado
+                    📝 Novo Contrato Recebido
                   </h1>
                 </div>
 
                 <div style="padding: 32px;">
                   <p style="margin: 0 0 16px; font-size: 13px; color: #1e293b; font-weight: 600;">
-                    Contrato foi reenviado para:
+                    Novo contrato de adesão foi assinado:
                   </p>
 
                   <table style="width: 100%; margin: 16px 0; border-collapse: collapse;">
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
                        <td style="padding: 8px 0; font-size: 12px; color: #1e293b;"><a href="mailto:${email}" style="color: #f59e0b;">${email}</a></td>
                     </tr>
                     <tr>
-                      <td style="padding: 8px 0; font-size: 12px; color: #64748b; font-weight: 600;">Data do Reenvio:</td>
+                      <td style="padding: 8px 0; font-size: 12px; color: #64748b; font-weight: 600;">Data:</td>
                       <td style="padding: 8px 0; font-size: 12px; color: #1e293b;">${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}</td>
                     </tr>
                   </table>
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
       if (clubeError) {
         console.error("❌ Resend error (clube):", JSON.stringify(clubeError));
       } else {
-        console.log("✅ Email de notificação enviado ao clube! ID:", clubeData?.id);
+        console.log("✅ Email enviado ao clube! ID:", clubeData?.id);
       }
     }
 
@@ -201,12 +201,11 @@ export async function POST(req: Request) {
       console.log("✅ Timestamp de reenvio atualizado no Firebase");
     } catch (firebaseError) {
       console.error("⚠️ Erro ao atualizar timestamp no Firebase:", firebaseError);
-      // Não falha a requisição se não conseguir atualizar o timestamp
     }
 
     return NextResponse.json({ 
       ok: true,
-      message: "Email reenviado com sucesso",
+      message: "Emails enviados com sucesso",
       clientId: clientData?.id,
     });
   } catch (err) {
