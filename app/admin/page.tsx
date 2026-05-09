@@ -26,7 +26,8 @@ import {
   AlertCircle,
   MessageSquare,
   Layers,
-  PenTool
+  PenTool,
+  Award
 } from "lucide-react";
 
 // Tipagem para dados mockados de contratos (substituir por dados reais do Firebase)
@@ -282,7 +283,44 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* SEÇÃO 03: MÍDIA */}
+        {/* SEÇÃO 03: CERTIFICADOS */}
+        <SectionTitle 
+          icon={<Award size={18} />}
+          title="Gestão de Certificados"
+          description="Geração e gestão de certificados de participantes"
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-yellow-50 to-transparent rounded-bl-full opacity-50"></div>
+            
+            <div className="relative flex flex-col h-full">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-linear-to-br from-yellow-100 to-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 border border-yellow-200 group-hover:scale-110 transition-transform duration-300">
+                    <Award size={32} />
+                  </div>
+                  <div>
+                    <h4 className="text-2xl font-black text-slate-800">Gerar Certificados</h4>
+                    <p className="text-slate-500 text-sm mt-1">Crie certificados personalizados para seus participantes</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ações */}
+              <div className="flex flex-col sm:flex-row gap-3 mt-auto">
+                <Link 
+                  href="/certificado" 
+                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-linear-to-r from-slate-900 to-slate-800 text-white rounded-2xl font-bold hover:from-slate-800 hover:to-slate-900 transition-all text-sm uppercase tracking-wider group/btn"
+                >
+                  <PlusCircle size={18} className="group-hover/btn:rotate-90 transition-transform" />
+                  Gerar Novo Certificado
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SEÇÃO 04: MÍDIA */}
         <SectionTitle 
           icon={<Boxes size={18} />}
           title="Mídia e Galeria Visual"
@@ -355,7 +393,7 @@ function AdminBlock({
   color: string; 
   icon: React.ReactNode; 
   subtitle: string;
-  manageHref: string; 
+  manageHref: string | null; 
   addHref: string;
 }) {
   const colors: Record<string, { bg: string; text: string; border: string; hover: string; light: string }> = {
@@ -445,13 +483,15 @@ function AdminBlock({
             {title === "Comentários" ? <MessageSquare size={16} /> : <PlusCircle size={16} className="group-hover/btn:rotate-90 transition-transform" />} 
             {title === "Comentários" ? "Ver Recentes" : "Novo Registro"}
           </Link>
-          <Link 
-            href={manageHref} 
-            className="flex items-center justify-center gap-2 w-full py-3.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl font-bold hover:border-slate-400 hover:text-slate-900 transition-all text-sm uppercase tracking-wider group/btn hover:bg-slate-50"
-          >
-            <Settings size={16} className="group-hover/btn:rotate-180 transition-transform duration-500" /> 
-            Gerenciar
-          </Link>
+          {manageHref && (
+            <Link 
+              href={manageHref} 
+              className="flex items-center justify-center gap-2 w-full py-3.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl font-bold hover:border-slate-400 hover:text-slate-900 transition-all text-sm uppercase tracking-wider group/btn hover:bg-slate-50"
+            >
+              <Settings size={16} className="group-hover/btn:rotate-180 transition-transform duration-500" /> 
+              Gerenciar
+            </Link>
+          )}
         </div>
       </div>
     </div>
