@@ -309,7 +309,7 @@ export default function AdminDashboard() {
               {/* Ações */}
               <div className="flex flex-col sm:flex-row gap-3 mt-auto">
                 <Link 
-                  href="/certificado" 
+                  href="/admin/certificado" 
                   className="flex-1 flex items-center justify-center gap-2 py-4 bg-linear-to-r from-slate-900 to-slate-800 text-white rounded-2xl font-bold hover:from-slate-800 hover:to-slate-900 transition-all text-sm uppercase tracking-wider group/btn"
                 >
                   <PlusCircle size={18} className="group-hover/btn:rotate-90 transition-transform" />
