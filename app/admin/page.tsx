@@ -139,7 +139,7 @@ export default function AdminDashboard() {
               {/* Logout */}
               <button 
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-xl transition-all group"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-xl cursor-pointer transition-all group"
               >
                 <LogOut size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 <span className="hidden sm:inline">Sair</span>
