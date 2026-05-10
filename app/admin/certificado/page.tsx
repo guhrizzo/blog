@@ -14,8 +14,6 @@ import {
   Award,
   User,
   Calendar,
-  BookOpen,
-  Clock,
   CheckCircle2,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -24,9 +22,6 @@ type FormData = {
   nome: string;
   cpf: string;
   data: string;
-  instrutor: string;
-  curso: string;
-  cargaHoraria: string;
 };
 
 type Field = {
@@ -43,9 +38,6 @@ export default function GerarCertificado() {
     nome: "",
     cpf: "",
     data: "",
-    instrutor: "",
-    curso: "",
-    cargaHoraria: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -73,6 +65,8 @@ export default function GerarCertificado() {
       setFormData((p) => ({ ...p, cpf: formatarCPF(value) }));
     } else if (name === "data") {
       setFormData((p) => ({ ...p, data: formatarData(value) }));
+    } else if (name === "nome") {
+      setFormData((p) => ({ ...p, nome: value.toUpperCase() }));
     } else {
       setFormData((p) => ({ ...p, [name]: value }));
     }
@@ -82,7 +76,6 @@ export default function GerarCertificado() {
     if (!formData.nome.trim()) { toast.error("Preencha o nome"); return false; }
     if (formData.cpf.replace(/\D/g, "").length !== 11) { toast.error("CPF inválido"); return false; }
     if (!formData.data.trim()) { toast.error("Preencha a data"); return false; }
-    if (!formData.curso.trim()) { toast.error("Preencha o nome do curso"); return false; }
     return true;
   };
 
@@ -109,19 +102,16 @@ export default function GerarCertificado() {
   };
 
   const limparFormulario = () => {
-    setFormData({ nome: "", cpf: "", data: "", instrutor: "", curso: "", cargaHoraria: "" });
+    setFormData({ nome: "", cpf: "", data: "" });
     toast.success("Formulário limpo!");
   };
 
-  const isPreenchido = formData.nome && formData.cpf && formData.data && formData.curso;
+  const isPreenchido = formData.nome && formData.cpf && formData.data;
 
   const fields: Field[] = [
     { name: "nome", label: "Nome Completo", placeholder: "Ex: João Silva dos Santos", icon: User, type: "text" },
     { name: "cpf", label: "CPF", placeholder: "000.000.000-00", icon: User, type: "text", maxLength: 14 },
-    { name: "curso", label: "Nome do Curso", placeholder: "Ex: Manuseio Seguro de Armas de Fogo", icon: BookOpen, type: "text" },
-    { name: "cargaHoraria", label: "Carga Horária", placeholder: "Ex: 40 horas", icon: Clock, type: "text" },
     { name: "data", label: "Data de Conclusão", placeholder: "DD/MM/AAAA", icon: Calendar, type: "text", maxLength: 10 },
-    { name: "instrutor", label: "Instrutor (Opcional)", placeholder: "Ex: Carlos Santos", icon: User, type: "text" },
   ];
 
   return (
@@ -195,7 +185,7 @@ export default function GerarCertificado() {
                   <button
                     onClick={gerarPDF}
                     disabled={loading || !isPreenchido}
-                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-linear-to-r from-yellow-400 to-yellow-500 text-white hover:from-yellow-500 hover:to-yellow-600 shadow-md hover:shadow-lg disabled:from-yellow-300 disabled:to-yellow-400"
+                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-linear-to-r from-yellow-400 to-yellow-500 text-white hover:from-yellow-500 hover:to-yellow-600 shadow-md hover:shadow-lg disabled:from-yellow-300 disabled:to-yellow-400"
                   >
                     {loading ? (
                       <>
@@ -214,7 +204,7 @@ export default function GerarCertificado() {
                   <button
                     onClick={limparFormulario}
                     disabled={!isPreenchido}
-                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     <RotateCcw size={16} /> Limpar
                   </button>
@@ -348,8 +338,31 @@ function CertificadoConteudo({ formData }: { formData: FormData }) {
         </p>
 
         {/* Nome */}
-        <div style={{ width: "100%", maxWidth: 900, borderBottom: `2px solid #333`, paddingBottom: 8, textAlign: "center", margin: "0 0 10px" }}>
-          <span style={{ fontFamily: "Georgia, serif", fontSize: 58, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.03em" }}>
+        <div style={{
+          width: "100%",
+          maxWidth: 900,
+          borderBottom: `2px solid #333`,
+          paddingBottom: 8,
+          textAlign: "center",
+          margin: "0 0 10px",
+          overflow: "hidden",
+        }}>
+          <span
+            style={{
+              fontFamily: "Georgia, serif",
+              fontSize: 58,
+              fontWeight: 700,
+              color: "#1a1a1a",
+              letterSpacing: "0.03em",
+              whiteSpace: "nowrap",
+              display: "inline-block",
+              maxWidth: "100%",
+              transformOrigin: "center center",
+              transform: formData.nome && formData.nome.length > 22
+                ? `scaleX(${Math.max(0.6, 22 / formData.nome.length)})`
+                : "scaleX(1)",
+            }}
+          >
             {formData.nome || "NOME DO PARTICIPANTE"}
           </span>
         </div>
@@ -361,52 +374,25 @@ function CertificadoConteudo({ formData }: { formData: FormData }) {
 
         {/* Texto */}
         <p style={{ fontSize: 20, lineHeight: 1.8, color: "#444", textAlign: "center", maxWidth: 820, fontFamily: "Georgia, serif", margin: 0 }}>
-          concluiu com êxito o curso{" "}
-          <strong style={{ color: "#1a1a1a" }}>
-            {formData.curso || "NOME DO CURSO"}
-          </strong>
-          {formData.cargaHoraria && (
-            <>, com carga horária de <strong style={{ color: "#1a1a1a" }}>{formData.cargaHoraria}</strong></>
-          )}
-          , demonstrando conhecimento e responsabilidade.
+          completou o curso com sucesso, demonstrando conhecimento e responsabilidade.
         </p>
       </div>
 
-      {/* Rodapé: assinaturas */}
+      {/* Rodapé: selo */}
       <div style={{
-        position: "absolute", bottom: 68, left: 80, right: 80,
-        display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+        position: "absolute", bottom: 68, left: "50%", transform: "translateX(-50%)",
+        display: "flex", justifyContent: "center", alignItems: "flex-end",
       }}>
-        {/* Instrutor */}
-        <div style={{ textAlign: "center", flex: 1 }}>
-          <Image src="/assinatura2.png" alt="assinatura instrutor" width={160} height={60} style={{ margin: "0 auto", objectFit: "contain" }} />
-          <div style={{ width: 200, height: 2, background: "#333", margin: "6px auto 6px" }} />
-          <p style={{ fontSize: 15, letterSpacing: "0.15em", color: "#333", fontWeight: 600, fontFamily: "Georgia, serif" }}>
-            {formData.instrutor || "INSTRUTOR"}
-          </p>
-        </div>
-
         {/* Selo central */}
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div style={{
-            width: 120, height: 120, borderRadius: "50%",
-            background: "#1a1a1a",
-            border: `5px solid ${gold}`,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 30px rgba(201,168,76,0.4)`,
-          }}>
-            <span style={{ color: gold, fontSize: 18, letterSpacing: 2 }}>★★★</span>
-            <p style={{ color: gold, fontSize: 11, fontWeight: 700, letterSpacing: 3, marginTop: 4, fontFamily: "Arial, sans-serif" }}>APROVADO</p>
-          </div>
-        </div>
-
-        {/* Data */}
-        <div style={{ textAlign: "center", flex: 1 }}>
-          <Image src="/assinatura1.png" alt="assinatura diretoria" width={160} height={60} style={{ margin: "0 auto", objectFit: "contain" }} />
-          <div style={{ width: 200, height: 2, background: "#333", margin: "6px auto 6px" }} />
-          <p style={{ fontSize: 15, letterSpacing: "0.15em", color: "#333", fontWeight: 600, fontFamily: "Georgia, serif" }}>
-            {formData.data ? `Data: ${formData.data}` : "DATA DE CONCLUSÃO"}
-          </p>
+        <div style={{
+          width: 120, height: 120, borderRadius: "50%",
+          background: "#1a1a1a",
+          border: `5px solid ${gold}`,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          boxShadow: `0 0 30px rgba(201,168,76,0.4)`,
+        }}>
+          <span style={{ color: gold, fontSize: 18, letterSpacing: 2 }}>★★★</span>
+          <p style={{ color: gold, fontSize: 11, fontWeight: 700, letterSpacing: 3, marginTop: 4, fontFamily: "Arial, sans-serif" }}>APROVADO</p>
         </div>
       </div>
     </div>
