@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -12,6 +12,7 @@ import {
   User,
   Calendar,
   CheckCircle2,
+  Printer,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -37,8 +38,8 @@ export default function GerarCertificado() {
     data: "",
   });
 
-  const [loading, setLoading] = useState(false);
-  const certificadoRef = useRef<HTMLDivElement>(null);
+  const [loadingDownload, setLoadingDownload] = useState(false);
+  const [loadingPrint, setLoadingPrint] = useState(false);
 
   const formatarCPF = (value: string) =>
     value
@@ -77,34 +78,178 @@ export default function GerarCertificado() {
     return true;
   };
 
-  const gerarPDF = async () => {
+  const formatarDataParaAPI = (dataISO: string): string => {
+    if (!dataISO) return "";
+    const [ano, mes, dia] = dataISO.split("-");
+    return `${dia}/${mes}/${ano}`;
+  };
+
+  const limparNomeArquivo = (nome: string): string => {
+    return nome
+      .toLowerCase()
+      .trim()
+      .substring(0, 50)
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]/g, "");
+  };
+
+  const buscarHTMLDaAPI = async (): Promise<string> => {
+    const params = new URLSearchParams({
+      nome: formData.nome,
+      cpf: formData.cpf,
+      data: formatarDataParaAPI(formData.data),
+    });
+
+    const response = await fetch(`/api/certificado?${params.toString()}`);
+
+    if (!response.ok) {
+      throw new Error("Erro ao buscar o certificado da API");
+    }
+
+    return await response.text();
+  };
+
+  const gerarCanvas = async (): Promise<string> => {
+    const htmlString = await buscarHTMLDaAPI();
+  
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = `
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      width: 1122px;
+      height: 794px;
+      border: none;
+      visibility: hidden;
+    `;
+  
+    document.body.appendChild(iframe);
+  
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  
+    const iframeDoc = iframe.contentDocument!;
+    iframeDoc.open();
+    iframeDoc.write(htmlString);
+    iframeDoc.close();
+  
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  
+    const body = iframeDoc.body;
+    const html = iframeDoc.documentElement;
+  
+    const fullWidth = Math.max(
+      body.scrollWidth, body.offsetWidth,
+      html.clientWidth, html.scrollWidth, html.offsetWidth
+    );
+    const fullHeight = Math.max(
+      body.scrollHeight, body.offsetHeight,
+      html.clientHeight, html.scrollHeight, html.offsetHeight
+    );
+  
+    const canvas = await html2canvas(iframeDoc.body, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      width: fullWidth,
+      height: fullHeight,
+      windowWidth: fullWidth,
+      windowHeight: fullHeight,
+    });
+  
+    document.body.removeChild(iframe);
+  
+    return canvas.toDataURL("image/png");
+  };
+
+  const baixarPDF = async () => {
     if (!validarFormulario()) return;
-    setLoading(true);
+    setLoadingDownload(true);
     try {
-      if (!certificadoRef.current) return;
-      const canvas = await html2canvas(certificadoRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = await gerarCanvas();
+  
+      // Pega dimensões reais da imagem gerada
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve) => (img.onload = resolve));
+  
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4",
       });
-      pdf.addImage(imgData, "PNG", 0, 0, 297, 210);
-      pdf.save(
-        `Certificado_${formData.nome.replace(/\s+/g, "_")}.pdf`
-      );
-      toast.success("Certificado gerado com sucesso!");
-    } catch {
-      toast.error("Erro ao gerar o certificado");
+  
+      // Mantém aspect ratio dentro do A4
+      const pageW = 297;
+      const pageH = 210;
+      const imgRatio = img.width / img.height;
+      const pageRatio = pageW / pageH;
+  
+      let w = pageW;
+      let h = pageH;
+      if (imgRatio > pageRatio) {
+        h = pageW / imgRatio;
+      } else {
+        w = pageH * imgRatio;
+      }
+  
+      const x = (pageW - w) / 2;
+      const y = (pageH - h) / 2;
+  
+      pdf.addImage(imgData, "PNG", x, y, w, h);
+      pdf.save(`Certificado_${limparNomeArquivo(formData.nome)}.pdf`);
+  
+      toast.success("Certificado baixado com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao baixar o certificado");
+      console.error(error);
     } finally {
-      setLoading(false);
+      setLoadingDownload(false);
     }
   };
+
+  const imprimirPDF = async () => {
+  if (!validarFormulario()) return;
+  setLoadingPrint(true);
+  try {
+    const imgData = await gerarCanvas();
+
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    pdf.addImage(imgData, "PNG", 0, 0, 297, 210);
+
+    const pdfBlob = pdf.output("blob");
+    const url = window.URL.createObjectURL(pdfBlob);
+
+    const printWindow = window.open(url, "_blank");
+    if (!printWindow) {
+      toast.error("Popup bloqueado — libere popups para este site");
+      return;
+    }
+
+    toast.success("Abrindo janela de impressão...");
+
+    // Não espera onload — só abre e deixa o browser lidar
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        // PDF viewer nativo bloqueia print() programático — usuário printa manualmente
+      }
+    }, 1500);
+
+  } catch (error) {
+    toast.error("Erro ao imprimir o certificado");
+    console.error(error);
+  } finally {
+    setLoadingPrint(false); // garante que sempre reseta
+  }
+};
 
   const limparFormulario = () => {
     setFormData({ nome: "", cpf: "", data: "" });
@@ -112,6 +257,7 @@ export default function GerarCertificado() {
   };
 
   const isPreenchido = formData.nome && formData.cpf && formData.data;
+  const anyLoading = loadingDownload || loadingPrint;
 
   const fields: Field[] = [
     {
@@ -177,11 +323,10 @@ export default function GerarCertificado() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* ====== FORMULÁRIO ====== */}
-          <div className="lg:col-span-2">
-            <div className="rounded-2xl p-6 h-fit sticky top-24 bg-white border border-slate-200 shadow-lg">
-              <div className="flex items-center gap-2 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-2xl mx-auto">
+          <div className="lg:col-span-3">
+            <div className="rounded-2xl p-8 bg-white border border-slate-200 shadow-lg">
+              <div className="flex items-center gap-2 mb-8">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-linear-to-br from-yellow-400 to-yellow-500">
                   <Award size={16} className="text-white" />
                 </div>
@@ -190,70 +335,66 @@ export default function GerarCertificado() {
                 </h2>
               </div>
 
-              <div className="space-y-4">
-                {fields.map(
-                  ({
-                    name,
-                    label,
-                    placeholder,
-                    icon: Icon,
-                    type,
-                    maxLength,
-                  }) => (
-                    <div key={name}>
-                      <label className="block text-xs font-bold mb-1.5 uppercase tracking-widest text-slate-700">
-                        {label}
-                      </label>
-                      <div className="relative">
-                        <Icon
-                          size={15}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                        />
-                        <input
-                          type={type}
-                          name={name}
-                          value={formData[name]}
-                          onChange={handleChange}
-                          placeholder={placeholder}
-                          maxLength={maxLength}
-                          className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all border border-slate-200 bg-slate-50 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
-                          onFocus={(e) => {
-                            e.target.style.borderColor = "#facc15";
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.borderColor = "#e2e8f0";
-                          }}
-                        />
-                      </div>
+              <div className="space-y-5">
+                {fields.map(({ name, label, placeholder, icon: Icon, type, maxLength }) => (
+                  <div key={name}>
+                    <label className="block text-xs font-bold mb-2 uppercase tracking-widest text-slate-700">
+                      {label}
+                    </label>
+                    <div className="relative">
+                      <Icon
+                        size={15}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                      <input
+                        type={type}
+                        name={name}
+                        value={formData[name]}
+                        onChange={handleChange}
+                        placeholder={placeholder}
+                        maxLength={maxLength}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-all border border-slate-200 bg-slate-50 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
+                        onFocus={(e) => { e.target.style.borderColor = "#facc15"; }}
+                        onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; }}
+                      />
                     </div>
-                  )
-                )}
+                    {name === "nome" && formData.nome.length > 40 && (
+                      <p className="text-xs text-amber-500 mt-1">
+                        ⚠️ Nome longo — fonte será reduzida no certificado
+                      </p>
+                    )}
+                  </div>
+                ))}
 
-                <div className="space-y-2 pt-4">
+                <div className="space-y-3 pt-6">
                   <button
-                    onClick={gerarPDF}
-                    disabled={loading || !isPreenchido}
-                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-linear-to-r from-yellow-400 to-yellow-500 text-white hover:from-yellow-500 hover:to-yellow-600 shadow-md hover:shadow-lg"
+                    onClick={baixarPDF}
+                    disabled={anyLoading || !isPreenchido}
+                    className="w-full h-12 py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-linear-to-r from-yellow-400 to-yellow-500 text-white hover:from-yellow-500 hover:to-yellow-600 shadow-md hover:shadow-lg"
                   >
-                    {loading ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />{" "}
-                        Gerando...
-                      </>
-                    ) : !isPreenchido ? (
-                      <>
-                        <Download size={18} /> Preencha os campos
-                      </>
+                    {loadingDownload ? (
+                      <><Loader2 size={18} className="animate-spin" /> Gerando...</>
                     ) : (
-                      <>
-                        <Download size={18} /> Baixar PDF
-                      </>
+                      <><Download size={18} /> {isPreenchido ? "Baixar PDF" : "Preencha os campos"}</>
                     )}
                   </button>
+
+                  <button
+                    onClick={imprimirPDF}
+                    disabled={anyLoading || !isPreenchido}
+                    className="w-full h-12 py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-linear-to-r from-blue-400 to-blue-500 text-white hover:from-blue-500 hover:to-blue-600 shadow-md hover:shadow-lg"
+                  >
+                    {loadingPrint ? (
+                      <><Loader2 size={18} className="animate-spin" /> Abrindo...</>
+                    ) : (
+                      <><Printer size={18} /> {isPreenchido ? "Imprimir" : "Preencha os campos"}</>
+                    )}
+                  </button>
+
                   <button
                     onClick={limparFormulario}
-                    disabled={!isPreenchido}
-                    className="w-full py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                    disabled={anyLoading || !isPreenchido}
+                    className="w-full h-12 py-3 px-6 font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-all bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                   >
                     <RotateCcw size={16} /> Limpar
                   </button>
@@ -261,456 +402,8 @@ export default function GerarCertificado() {
               </div>
             </div>
           </div>
-
-          {/* ====== PRÉVIA ====== */}
-          <div className="lg:col-span-3">
-            <div className="rounded-2xl p-5 sticky top-24 bg-white border border-slate-200 shadow-lg">
-              <p className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-600">
-                Prévia do Certificado
-              </p>
-
-              <div
-                className="overflow-hidden rounded-xl"
-                style={{ background: "#e8e8e8" }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    paddingBottom: "70%",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "1400px",
-                      height: "980px",
-                      transform: "scale(var(--cert-scale, 0.46))",
-                      transformOrigin: "top left",
-                    }}
-                  >
-                    <div
-                      ref={certificadoRef}
-                      style={{
-                        width: 1400,
-                        height: 980,
-                        position: "relative",
-                      }}
-                    >
-                      <CertificadoConteudo formData={formData} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <style>{`
-                @media (min-width: 1280px) { :root { --cert-scale: 0.50; } }
-                @media (max-width: 1279px) { :root { --cert-scale: 0.42; } }
-                @media (max-width: 900px)  { :root { --cert-scale: 0.33; } }
-              `}</style>
-            </div>
-          </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-/* ================================================================
-   CERTIFICADO CONTEÚDO — Layout simples sem flexbox
-================================================================ */
-function CertificadoConteudo({ formData }: { formData: FormData }) {
-  const gold = "#c8922a";
-  const dark = "#111111";
-
-  const formatarDataExtenso = (dataISO: string): string => {
-    if (!dataISO) return "";
-    const meses = [
-      "Janeiro",
-      "Fevereiro",
-      "Março",
-      "Abril",
-      "Maio",
-      "Junho",
-      "Julho",
-      "Agosto",
-      "Setembro",
-      "Outubro",
-      "Novembro",
-      "Dezembro",
-    ];
-    const [ano, mes, dia] = dataISO.split("-");
-    return `BH, ${parseInt(dia)} de ${meses[parseInt(mes) - 1]} de ${ano}`;
-  };
-
-  const nomeScale =
-    formData.nome && formData.nome.length > 24
-      ? Math.max(0.52, 24 / formData.nome.length)
-      : 1;
-
-  return (
-    <div
-      style={{
-        width: 1400,
-        height: 980,
-        background: "#ffffff",
-        position: "relative",
-        overflow: "hidden",
-        fontFamily: "Georgia, 'Times New Roman', serif",
-        textAlign: "center",
-      }}
-    >
-      {/* ══ BORDAS ══ */}
-      <div
-        style={{ position: "absolute", inset: 0, border: `8px solid ${dark}` }}
-      />
-      <div
-        style={{ position: "absolute", inset: 16, border: `3px solid ${gold}` }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          inset: 26,
-          border: `1px solid ${dark}`,
-          opacity: 0.2,
-        }}
-      />
-
-      {/* ══════════════════════════════════════════════
-          CANTOS GEOMÉTRICOS
-      ══════════════════════════════════════════════ */}
-
-      {/* Superior esquerdo */}
-      <svg
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: 180,
-          height: 180,
-          zIndex: 10,
-        }}
-        viewBox="0 0 180 180"
-      >
-        <polygon points="0,0 110,0 0,110" fill={dark} />
-        <polygon points="110,0 148,0 0,148 0,110" fill={gold} />
-        <polygon
-          points="148,0 180,0 0,180 0,148"
-          fill={gold}
-          opacity="0.5"
-        />
-      </svg>
-
-      {/* Superior direito */}
-      <svg
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: 180,
-          height: 180,
-          zIndex: 10,
-        }}
-        viewBox="0 0 180 180"
-      >
-        <polygon points="180,0 70,0 180,110" fill={dark} />
-        <polygon points="70,0 32,0 180,148 180,110" fill={gold} />
-        <polygon
-          points="32,0 0,0 180,180 180,148"
-          fill={gold}
-          opacity="0.5"
-        />
-      </svg>
-
-      {/* Inferior esquerdo */}
-      <svg
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: 180,
-          height: 180,
-          zIndex: 10,
-        }}
-        viewBox="0 0 180 180"
-      >
-        <polygon points="0,180 110,180 0,70" fill={dark} />
-        <polygon points="110,180 148,180 0,32 0,70" fill={gold} />
-        <polygon
-          points="148,180 180,180 0,0 0,32"
-          fill={gold}
-          opacity="0.5"
-        />
-      </svg>
-
-      {/* Inferior direito */}
-      <svg
-        style={{
-          position: "absolute",
-          bottom: 0,
-          right: 0,
-          width: 180,
-          height: 180,
-          zIndex: 10,
-        }}
-        viewBox="0 0 180 180"
-      >
-        <polygon points="180,180 70,180 180,70" fill={dark} />
-        <polygon points="70,180 32,180 180,32 180,70" fill={gold} />
-        <polygon
-          points="32,180 0,180 180,0 180,32"
-          fill={gold}
-          opacity="0.5"
-        />
-      </svg>
-
-      {/* ══════════════════════════════════════════════
-          CONTEÚDO — Posicionamento Absoluto
-      ══════════════════════════════════════════════ */}
-
-      {/* Logo Grupo Protect - Topo */}
-      <img
-        src="/grupoprotect.png"
-        alt="Grupo Protect"
-        style={{
-          position: "absolute",
-          top: 50,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 90,
-          height: "auto",
-          objectFit: "contain",
-          maxHeight: 70,
-          zIndex: 20,
-        }}
-      />
-
-      {/* CERTIFICADO - Título */}
-      <h1
-        style={{
-          position: "absolute",
-          top: 140,
-          left: 80,
-          right: 80,
-          fontSize: 110,
-          fontWeight: 800,
-          letterSpacing: "0.08em",
-          color: dark,
-          margin: 0,
-          lineHeight: 0.9,
-          zIndex: 20,
-        }}
-      >
-        CERTIFICADO
-      </h1>
-
-      {/* DE CONCLUSÃO */}
-      <h2
-        style={{
-          position: "absolute",
-          top: 270,
-          left: 80,
-          right: 80,
-          fontSize: 22,
-          fontWeight: 400,
-          letterSpacing: "0.1em",
-          color: "#666",
-          margin: 0,
-          fontFamily: "Georgia, serif",
-          zIndex: 20,
-        }}
-      >
-        DE CONCLUSÃO
-      </h2>
-
-      {/* Divisor */}
-      <div
-        style={{
-          position: "absolute",
-          top: 320,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 260,
-          height: 1.5,
-          background: dark,
-          zIndex: 20,
-        }}
-      />
-
-      {/* CERTIFICAMOS QUE */}
-      <p
-        style={{
-          position: "absolute",
-          top: 355,
-          left: 80,
-          right: 80,
-          fontSize: 13,
-          letterSpacing: "0.08em",
-          color: "#666",
-          margin: 0,
-          fontFamily: "Arial, sans-serif",
-          fontWeight: 600,
-          zIndex: 20,
-        }}
-      >
-        CERTIFICAMOS QUE
-      </p>
-
-      {/* NOME */}
-      <div
-        style={{
-          position: "absolute",
-          top: 400,
-          left: 150,
-          right: 150,
-          borderBottom: `2px solid ${dark}`,
-          paddingBottom: 10,
-          zIndex: 20,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 66,
-            fontWeight: 700,
-            color: dark,
-            letterSpacing: "0.02em",
-            display: "inline-block",
-            transformOrigin: "center center",
-            transform: `scaleX(${nomeScale})`,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {formData.nome || "NOME DO PARTICIPANTE"}
-        </span>
-      </div>
-
-      {/* CPF */}
-      <p
-        style={{
-          position: "absolute",
-          top: 495,
-          left: 80,
-          right: 80,
-          fontSize: 13,
-          color: "#666",
-          letterSpacing: "0.06em",
-          margin: 0,
-          fontFamily: "Arial, sans-serif",
-          zIndex: 20,
-        }}
-      >
-        CPF: {formData.cpf || "000.000.000-00"}
-      </p>
-
-      {/* Texto descritivo */}
-      <p
-        style={{
-          position: "absolute",
-          top: 535,
-          left: 120,
-          right: 120,
-          fontSize: 15,
-          lineHeight: 1.5,
-          color: "#555",
-          margin: 0,
-          fontFamily: "Georgia, serif",
-          zIndex: 20,
-        }}
-      >
-        concluiu com êxito o treinamento teórico e prático do curso,
-        <br />
-        demonstrando conhecimento, habilidade e responsabilidade no
-        <br />
-        manuseio seguro de armas de fogo.
-      </p>
-
-      {/* ═══════════════════════════════════════════
-          RODAPÉ - 3 Colunas
-      ═══════════════════════════════════════════ */}
-
-      {/* Coluna Esquerda - INSTRUTOR */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 60,
-          left: 80,
-          width: 280,
-          textAlign: "center",
-          zIndex: 20,
-        }}
-      >
-        <div
-          style={{
-            borderTop: `1.5px solid ${dark}`,
-            marginBottom: 8,
-            height: 0,
-          }}
-        />
-        <p
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.08em",
-            color: "#444",
-            fontFamily: "Arial, sans-serif",
-            fontWeight: 700,
-            margin: 0,
-          }}
-        >
-          INSTRUTOR
-        </p>
-      </div>
-
-      {/* Coluna Central - LOGO */}
-      <img
-        src="/protectclubedetiro.png"
-        alt="Protect Clube de Tiro"
-        style={{
-          position: "absolute",
-          bottom: 50,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 100,
-          height: "auto",
-          objectFit: "contain",
-          maxHeight: 110,
-          zIndex: 20,
-        }}
-      />
-
-      {/* Coluna Direita - DATA */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 60,
-          right: 80,
-          width: 280,
-          textAlign: "center",
-          zIndex: 20,
-        }}
-      >
-        <div
-          style={{
-            borderTop: `1.5px solid ${dark}`,
-            marginBottom: 8,
-            height: 0,
-          }}
-        />
-        <p
-          style={{
-            fontSize: formData.data ? 10 : 11,
-            letterSpacing: "0.06em",
-            color: "#444",
-            fontFamily: "Arial, sans-serif",
-            fontWeight: 700,
-            margin: 0,
-          }}
-        >
-          {formData.data ? formatarDataExtenso(formData.data) : "DATA"}
-        </p>
-      </div>
     </div>
   );
 }

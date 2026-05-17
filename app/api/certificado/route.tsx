@@ -2,34 +2,70 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+function formatarData(data: string): string {
+  if (!data.trim()) return '';
+
+  const iso = data.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const [, ano, mes, dia] = iso;
+    return `${parseInt(dia, 10)} de ${MESES[parseInt(mes, 10) - 1]} de ${ano} em BH, Minas Gerais, Brasil,`;
+  }
+
+  const br = data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) {
+    const [, dia, mes, ano] = br;
+    return `${parseInt(dia, 10)} de ${MESES[parseInt(mes, 10) - 1]} de ${ano} em BH, Minas Gerais, Brasil,`;
+  }
+
+  const dot = data.match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
+  if (dot) {
+    const [, ano, mes, dia] = dot;
+    return `BH, Minas Gerais, Brasil, ${parseInt(dia, 10)} de ${MESES[parseInt(mes, 10) - 1]} de ${ano}`;
+  }
+
+  return data;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
   const nome = searchParams.get('nome') ?? 'NOME DO PARTICIPANTE';
   const cpf = searchParams.get('cpf') ?? '000.000.000-00';
   const data = searchParams.get('data') ?? '01/01/2024';
+  const titulo = searchParams.get('titulo') ?? 'CERTIFICADO';
+  const subtitulo = searchParams.get('subtitulo') ?? 'DE CONCLUSÃO';
 
-  const gold = '#c8922a';
   const dark = '#111111';
 
   const nomeStr = String(nome);
   const cpfStr = String(cpf);
-  const dataStr = String(data);
+  const dataStr = formatarData(String(data));
 
-  const nomeScale =
-    nomeStr.length > 24
-      ? Math.max(0.52, 24 / nomeStr.length)
-      : 1;
+  // Font size diminui conforme o nome cresce, sem quebrar linha
+  let nomeFontSize = 56;
+  if (nomeStr.length > 40) {
+    nomeFontSize = 28;
+  } else if (nomeStr.length > 30) {
+    nomeFontSize = 36;
+  } else if (nomeStr.length > 24) {
+    nomeFontSize = 44;
+  } else if (nomeStr.length > 18) {
+    nomeFontSize = 50;
+  }
 
-  const logoTopPath = path.join(process.cwd(), 'public', 'grupoprotect.png');
-  const logoFooterPath = path.join(process.cwd(), 'public', 'protectclubedetiro.png');
+  const CERT_WIDTH = 1240;
+  const CERT_HEIGHT = 877;
+  const y = (px: number) => Math.round(px * CERT_HEIGHT / 877);
 
-  const logoTopBase64 = fs.existsSync(logoTopPath)
-    ? `data:image/png;base64,${fs.readFileSync(logoTopPath).toString('base64')}`
-    : '';
+  const molduraPath = path.join(process.cwd(), 'public', 'moldura_logo_a4.png');
 
-  const logoFooterBase64 = fs.existsSync(logoFooterPath)
-    ? `data:image/png;base64,${fs.readFileSync(logoFooterPath).toString('base64')}`
+  const molduraBase64 = fs.existsSync(molduraPath)
+    ? `data:image/png;base64,${fs.readFileSync(molduraPath).toString('base64')}`
     : '';
 
   const html = `
@@ -38,6 +74,9 @@ export async function GET(req: NextRequest) {
     <head>
       <meta charset="UTF-8">
       <title>Certificado</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800;900&family=Montserrat:wght@300;400;600;700&family=Georgia:wght@400;700&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -48,256 +87,185 @@ export async function GET(req: NextRequest) {
         }
 
         .container {
-          width: 1400px;
-          height: 980px;
-          background: white;
+          width: ${CERT_WIDTH}px;
+          height: ${CERT_HEIGHT}px;
           position: relative;
           overflow: hidden;
-          font-family: Georgia, 'Times New Roman', serif;
+          font-family: 'Georgia', 'Times New Roman', serif;
         }
 
-        .border-outer {
+        .moldura-bg {
           position: absolute;
           inset: 0;
-          border: 8px solid ${dark};
-          box-sizing: border-box;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          z-index: 1;
+          pointer-events: none;
         }
 
-        .border-middle {
+        .header {
           position: absolute;
-          inset: 16px;
-          border: 3px solid ${gold};
-          box-sizing: border-box;
-        }
-
-        .border-inner {
-          position: absolute;
-          inset: 26px;
-          border: 1px solid ${dark};
-          opacity: 0.2;
-          box-sizing: border-box;
-        }
-
-        .logo-top {
-          position: absolute;
-          top: 50px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 90px;
-          height: auto;
-          max-height: 90px;
+          top: ${y(180)}px;
+          left: 150px;
+          right: 150px;
+          text-align: center;
           z-index: 20;
         }
 
         .title {
-          position: absolute;
-          top: 140px;
-          left: 80px;
-          right: 80px;
-          font-size: 110px;
-          font-weight: 800;
+          font-family: 'Playfair Display', serif;
+          font-size: 68px;
+          font-weight: 900;
           letter-spacing: 0.08em;
           color: ${dark};
-          text-align: center;
-          line-height: 0.9;
-          z-index: 20;
+          line-height: 1;
+          margin: 0;
+          padding: 0;
         }
 
         .subtitle {
-          position: absolute;
-          top: 270px;
-          left: 80px;
-          right: 80px;
-          font-size: 22px;
-          font-weight: 400;
-          letter-spacing: 0.1em;
-          color: #666;
-          text-align: center;
-          z-index: 20;
-        }
-
-        .divider {
-          position: absolute;
-          top: 320px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 260px;
-          height: 1.5px;
-          background: ${dark};
-          z-index: 20;
+          font-family: 'Montserrat', sans-serif;
+          font-size: 36px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          color: #999;
+          margin: 6px 0 0 0;
+          padding: 0;
         }
 
         .cert-text {
           position: absolute;
-          top: 355px;
-          left: 80px;
-          right: 80px;
-          font-size: 13px;
-          letter-spacing: 0.08em;
+          top: ${y(305)}px;
+          left: 150px;
+          right: 150px;
+          font-family: 'Montserrat', sans-serif;
+          font-size: 22px;
+          letter-spacing: 0.1em;
+          color: #999;
+          text-align: center;
+          font-weight: 600;
+          z-index: 20;
+          margin-bottom: 10px;
+        }
+
+        .cert-date {
+          position: absolute;
+          top: ${y(340)}px;
+          left: 150px;
+          right: 150px;
+          font-family: 'Montserrat', sans-serif;
+          font-size: 12px;
+          letter-spacing: 0.05em;
           color: #666;
           text-align: center;
-          font-family: Arial, sans-serif;
-          font-weight: 600;
+          font-weight: 500;
           z-index: 20;
         }
 
         .name-box {
           position: absolute;
-          top: 400px;
-          left: 150px;
-          right: 150px;
-          border-bottom: 2px solid ${dark};
-          padding-bottom: 10px;
+          top: ${y(360)}px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 90%;
+          /* sem max-width para não forçar quebra */
+          padding-bottom: 8px;
           z-index: 20;
           text-align: center;
         }
 
         .name {
-          font-size: 66px;
+          font-family: 'Playfair Display', serif;
+          font-size: ${nomeFontSize}px;
           font-weight: 700;
           color: ${dark};
-          letter-spacing: 0.02em;
+          letter-spacing: 0.01em;
           display: inline-block;
-          transform-origin: center center;
-          transform: scaleX(${nomeScale});
-          white-space: nowrap;
-        }
-
-        .cpf {
-          position: absolute;
-          top: 495px;
-          left: 80px;
-          right: 80px;
-          font-size: 13px;
-          color: #666;
-          letter-spacing: 0.06em;
-          text-align: center;
-          font-family: Arial, sans-serif;
-          z-index: 20;
+          white-space: nowrap; /* nunca quebra */
+          line-height: 1.2;
         }
 
         .description {
           position: absolute;
-          top: 535px;
-          left: 120px;
-          right: 120px;
-          font-size: 15px;
-          line-height: 1.5;
-          color: #555;
+          top: ${y(460)}px;
+          left: 180px;
+          right: 180px;
+          font-family: 'Georgia', serif;
+          font-size: 22px;
+          line-height: 1.8;
+          color: #666;
           text-align: center;
           z-index: 20;
         }
 
         .footer {
           position: absolute;
-          bottom: 60px;
-          width: 100%;
+          bottom: ${y(100)}px;
+          left: 250px;
           display: flex;
-          justify-content: space-between;
+          justify-content: flex-start;
           align-items: flex-end;
-          padding: 0 80px;
-          box-sizing: border-box;
           z-index: 20;
         }
 
-        .footer-col {
-          flex: 1;
+        .footer-instructor {
+          flex: 0 1 auto;
           text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
         }
 
         .footer-line {
-          border-top: 1.5px solid ${dark};
-          margin-bottom: 8px;
+          border-top: 2px solid ${dark};
+          width: 180px;
+          margin-bottom: 6px;
         }
 
         .footer-text {
-          font-size: 11px;
+          font-family: 'Montserrat', sans-serif;
+          font-size: 9px;
           letter-spacing: 0.08em;
           color: #444;
-          font-family: Arial, sans-serif;
           font-weight: 700;
         }
 
-        .footer-logo {
-          width: 100px;
-          height: auto;
-          max-height: 110px;
-          object-fit: contain;
+        .footer-text--data {
+          font-size: 8px;
+          letter-spacing: 0.03em;
+          line-height: 1.3;
         }
 
-        svg {
-          position: absolute;
-          z-index: 10;
-        }
-
-        .corner-tl { top: 0; left: 0; }
-        .corner-tr { top: 0; right: 0; }
-        .corner-bl { bottom: 0; left: 0; }
-        .corner-br { bottom: 0; right: 0; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="border-outer"></div>
-        <div class="border-middle"></div>
-        <div class="border-inner"></div>
-
-        <svg class="corner-tl" width="180" height="180" viewBox="0 0 180 180">
-          <polygon points="0,0 110,0 0,110" fill="${dark}" />
-          <polygon points="110,0 148,0 0,148 0,110" fill="${gold}" />
-          <polygon points="148,0 180,0 0,180 0,148" fill="${gold}" opacity="0.5" />
-        </svg>
-
-        <svg class="corner-tr" width="180" height="180" viewBox="0 0 180 180">
-          <polygon points="180,0 70,0 180,110" fill="${dark}" />
-          <polygon points="70,0 32,0 180,148 180,110" fill="${gold}" />
-          <polygon points="32,0 0,0 180,180 180,148" fill="${gold}" opacity="0.5" />
-        </svg>
-
-        <svg class="corner-bl" width="180" height="180" viewBox="0 0 180 180">
-          <polygon points="0,180 110,180 0,70" fill="${dark}" />
-          <polygon points="110,180 148,180 0,32 0,70" fill="${gold}" />
-          <polygon points="148,180 180,180 0,0 0,32" fill="${gold}" opacity="0.5" />
-        </svg>
-
-        <svg class="corner-br" width="180" height="180" viewBox="0 0 180 180">
-          <polygon points="180,180 70,180 180,70" fill="${dark}" />
-          <polygon points="70,180 32,180 180,32 180,70" fill="${gold}" />
-          <polygon points="32,180 0,180 180,0 180,32" fill="${gold}" opacity="0.5" />
-        </svg>
-
-        <img src="${logoTopBase64}" alt="Grupo Protect" class="logo-top" />
-
-        <div class="title">CERTIFICADO</div>
-        <div class="subtitle">DE CONCLUSÃO</div>
-        <div class="divider"></div>
+        ${molduraBase64 ? `<img src="${molduraBase64}" alt="" class="moldura-bg" />` : ''}
+        <div class="header">
+          <div class="title">${titulo}</div>
+          <div class="subtitle">${subtitulo}</div>
+        </div>
+        
         <div class="cert-text">CERTIFICAMOS QUE</div>
+        <div class="cert-date">Na Data ${dataStr}</div>
 
         <div class="name-box">
           <span class="name">${nomeStr}</span>
         </div>
 
-        <div class="cpf">CPF: ${cpfStr}</div>
-
         <div class="description">
-          concluiu com êxito o treinamento teórico e prático do curso,<br/>
+          Portador do CPF: ${cpfStr}, concluiu com êxito <br/> o treinamento teórico e prático do curso básico de armas curtas<br/>
           demonstrando conhecimento, habilidade e responsabilidade no<br/>
           manuseio seguro de armas de fogo.
         </div>
 
         <div class="footer">
-          <div class="footer-col">
+          <div class="footer-instructor">
             <div class="footer-line"></div>
             <div class="footer-text">INSTRUTOR</div>
-          </div>
-
-          <div class="footer-col">
-            <img src="${logoFooterBase64}" alt="Protect" class="footer-logo" />
-          </div>
-
-          <div class="footer-col">
-            <div class="footer-line"></div>
-            <div class="footer-text">${dataStr}</div>
           </div>
         </div>
       </div>
