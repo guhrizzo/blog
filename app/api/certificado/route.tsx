@@ -204,8 +204,9 @@ export async function GET(req: NextRequest) {
           position: absolute;
           bottom: ${y(100)}px;
           left: 250px;
+          right: 250px;
           display: flex;
-          justify-content: flex-start;
+          justify-content: space-between;
           align-items: flex-end;
           z-index: 20;
         }
@@ -266,6 +267,10 @@ export async function GET(req: NextRequest) {
           <div class="footer-instructor">
             <div class="footer-line"></div>
             <div class="footer-text">INSTRUTOR</div>
+          </div>
+          <div class="footer-instructor">
+            <div class="footer-line"></div>
+            <div class="footer-text">GRUPO PROTECT</div>
           </div>
         </div>
       </div>
