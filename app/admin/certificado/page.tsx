@@ -13,6 +13,7 @@ import {
   Calendar,
   CheckCircle2,
   Printer,
+  ChevronDown,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -20,6 +21,7 @@ type FormData = {
   nome: string;
   cpf: string;
   data: string;
+  tipoArma: string;
 };
 
 type Field = {
@@ -36,10 +38,12 @@ export default function GerarCertificado() {
     nome: "",
     cpf: "",
     data: "",
+    tipoArma: "curtas",
   });
 
   const [loadingDownload, setLoadingDownload] = useState(false);
   const [loadingPrint, setLoadingPrint] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const formatarCPF = (value: string) =>
     value
@@ -49,7 +53,7 @@ export default function GerarCertificado() {
       .replace(/(\d{3})(\d{1,2})/, "$1-$2")
       .slice(0, 14);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === "cpf") {
       setFormData((p) => ({ ...p, cpf: formatarCPF(value) }));
@@ -75,6 +79,10 @@ export default function GerarCertificado() {
       toast.error("Preencha a data");
       return false;
     }
+    if (!formData.tipoArma.trim()) {
+      toast.error("Selecione o tipo de arma");
+      return false;
+    }
     return true;
   };
 
@@ -98,6 +106,7 @@ export default function GerarCertificado() {
       nome: formData.nome,
       cpf: formData.cpf,
       data: formatarDataParaAPI(formData.data),
+      tipoArma: formData.tipoArma,
     });
 
     const response = await fetch(`/api/certificado?${params.toString()}`);
@@ -252,11 +261,11 @@ export default function GerarCertificado() {
 };
 
   const limparFormulario = () => {
-    setFormData({ nome: "", cpf: "", data: "" });
+    setFormData({ nome: "", cpf: "", data: "", tipoArma: "curtas" });
     toast.success("Formulário limpo!");
   };
 
-  const isPreenchido = formData.nome && formData.cpf && formData.data;
+  const isPreenchido = formData.nome && formData.cpf && formData.data && formData.tipoArma;
   const anyLoading = loadingDownload || loadingPrint;
 
   const fields: Field[] = [
@@ -365,6 +374,82 @@ export default function GerarCertificado() {
                     )}
                   </div>
                 ))}
+
+                <div>
+                  <label className="block text-xs font-bold mb-2 uppercase tracking-widest text-slate-700">
+                    Tipo de Certificado
+                  </label>
+                  <div className="relative">
+                    {/* Botão do Dropdown Personalizado */}
+                    <button
+                      type="button"
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                      className="w-full pl-9 pr-10 py-3 rounded-xl text-sm text-slate-900 border border-slate-200 bg-slate-50 hover:bg-slate-100/50 transition-all flex items-center justify-between text-left focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 cursor-pointer"
+                    >
+                      <Award
+                        size={15}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                      <span>
+                        {formData.tipoArma === "curtas" ? "Armas Curtas" : "Armas Longas"}
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-slate-500 transition-transform duration-200 ${
+                          dropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Overlay para fechar ao clicar fora */}
+                    {dropdownOpen && (
+                      <div
+                        className="fixed inset-0 z-20 cursor-default"
+                        onClick={() => setDropdownOpen(false)}
+                      />
+                    )}
+
+                    {/* Lista Flutuante de Opções */}
+                    {dropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-2 z-30 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden divide-y divide-slate-100 transition-all animate-in fade-in slide-in-from-top-1 duration-150">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData((p) => ({ ...p, tipoArma: "curtas" }));
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-3.5 text-sm text-left flex items-center justify-between transition-colors cursor-pointer ${
+                            formData.tipoArma === "curtas"
+                              ? "bg-yellow-50/60 text-yellow-800 font-bold"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>Armas Curtas</span>
+                          {formData.tipoArma === "curtas" && (
+                            <CheckCircle2 size={16} className="text-yellow-500" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData((p) => ({ ...p, tipoArma: "longas" }));
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-3.5 text-sm text-left flex items-center justify-between transition-colors cursor-pointer ${
+                            formData.tipoArma === "longas"
+                              ? "bg-yellow-50/60 text-yellow-800 font-bold"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>Armas Longas</span>
+                          {formData.tipoArma === "longas" && (
+                            <CheckCircle2 size={16} className="text-yellow-500" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="space-y-3 pt-6">
                   <button

@@ -39,6 +39,11 @@ export async function GET(req: NextRequest) {
   const data = searchParams.get('data') ?? '01/01/2024';
   const titulo = searchParams.get('titulo') ?? 'CERTIFICADO';
   const subtitulo = searchParams.get('subtitulo') ?? 'DE CONCLUSÃO';
+  const tipoArma = searchParams.get('tipoArma') ?? 'curtas';
+
+  const textoArmas = tipoArma === 'longas' ? 'armas longas' : 'armas curtas';
+  const footerLeft = tipoArma === 'longas' ? '320px' : '250px';
+  const footerRight = tipoArma === 'longas' ? '320px' : '250px';
 
   const dark = '#111111';
 
@@ -62,7 +67,8 @@ export async function GET(req: NextRequest) {
   const CERT_HEIGHT = 877;
   const y = (px: number) => Math.round(px * CERT_HEIGHT / 877);
 
-  const molduraPath = path.join(process.cwd(), 'public', 'moldura_logo_a4.png');
+  const nomeMoldura = tipoArma === 'longas' ? 'moldura_logo_a4_armaslongas.png' : 'moldura_logo_a4.png';
+  const molduraPath = path.join(process.cwd(), 'public', nomeMoldura);
 
   const molduraBase64 = fs.existsSync(molduraPath)
     ? `data:image/png;base64,${fs.readFileSync(molduraPath).toString('base64')}`
@@ -203,8 +209,8 @@ export async function GET(req: NextRequest) {
         .footer {
           position: absolute;
           bottom: ${y(100)}px;
-          left: 250px;
-          right: 250px;
+          left: ${footerLeft};
+          right: ${footerRight};
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
@@ -258,7 +264,7 @@ export async function GET(req: NextRequest) {
         </div>
 
         <div class="description">
-          Portador do CPF: ${cpfStr}, concluiu com êxito <br/> o treinamento teórico e prático do curso básico de armas curtas<br/>
+          Portador do CPF: ${cpfStr}, concluiu com êxito <br/> o treinamento teórico e prático do curso básico de ${textoArmas}<br/>
           demonstrando conhecimento, habilidade e responsabilidade no<br/>
           manuseio seguro de armas de fogo.
         </div>
